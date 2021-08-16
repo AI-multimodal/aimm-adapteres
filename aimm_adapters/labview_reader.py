@@ -9,18 +9,21 @@ class LabviewFileReader:
         self._file = open(path, "r")
 
     def parse_file(self):
-        Lines = self._file.readlines()
+        lines = self._file.readlines()
 
         parsing_case = 0
         data = []
         comment_lines = []
         meta_dict = {}
-        for line in Lines:
+        for line in lines:
             line = line.rstrip()
             # Parse comments as metadata
             if line[0] == "#":
                 if len(line) > 2:
-                    line = line[2:]
+                    if parsing_case == 1:
+                        line = line[1:]
+                    else:
+                        line = line[2:]
 
                     # Add additional cases to parse more information from the
                     # header comments
