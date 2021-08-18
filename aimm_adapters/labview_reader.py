@@ -45,40 +45,50 @@ class LabviewFileReader:
                     # Add additional cases to parse more information from the
                     # header comments
                     # Start reading the name of the upcoming block of information
-                    comment_lines = []
+
                     if line == "Column Headings:":
                         parsing_case = (
                             ParsingCase.column
                         )  # Create headers for dataframe
                         continue
                     elif line == "User Comment:":
+                        comment_lines = []
                         parsing_case = ParsingCase.user
                         continue
                     elif line == "Scan config:":
+                        comment_lines = []
                         parsing_case = ParsingCase.scan
                         continue
                     elif line == "Amplifier Sensitivities:":
+                        comment_lines = []
                         parsing_case = ParsingCase.amplifier
                         continue
                     elif line.find("Analog Input Voltages") != -1:
+                        comment_lines = []
                         parsing_case = ParsingCase.analog
                         continue
                     elif line == "Mono Info:":
+                        comment_lines = []
                         parsing_case = ParsingCase.mono
                         continue
                     elif line == "ID Info:":
+                        comment_lines = []
                         parsing_case = ParsingCase.id_info
                         continue
                     elif line == "Slit Info:":
+                        comment_lines = []
                         parsing_case = ParsingCase.slit
                         continue
                     elif line == "Motor Positions:":
+                        comment_lines = []
                         parsing_case = ParsingCase.motor
                         continue
                     elif line.find("LabVIEW Control Panel") != -1:
+                        comment_lines = []
                         parsing_case = ParsingCase.panel
                     elif line.find("Beamline") != -1:
                         parsing_case = ParsingCase.beamline
+
                     # Reads the following lines to parse a block of information
                     # with a specific format
                     if parsing_case == ParsingCase.column:
@@ -97,13 +107,25 @@ class LabviewFileReader:
                         meta_dict["ScanConfig"] = comment_lines
                     elif parsing_case == ParsingCase.amplifier:
                         comment_lines = line.split("  ")
-                        meta_dict["AmplifierSensitivities"] = comment_lines
+                        amplifier_dict = {}
+                        for element in comment_lines:
+                            key_value = element.split(": ")
+                            amplifier_dict[key_value[0]] = key_value[1]
+                        meta_dict["AmplifierSensitivities"] = amplifier_dict
                     elif parsing_case == ParsingCase.analog:
                         comment_lines = line.split("  ")
-                        meta_dict["AnalogInputVoltages"] = comment_lines
+                        analog_dict = {}
+                        for element in comment_lines:
+                            key_value = element.split(": ")
+                            analog_dict[key_value[0]] = key_value[1]
+                        meta_dict["AnalogInputVoltages"] = analog_dict
                     elif parsing_case == ParsingCase.mono:
                         comment_lines = line.split("; ")
-                        meta_dict["MonoInfo"] = comment_lines
+                        mono_dict = {}
+                        for element in comment_lines:
+                            key_value = element.split(": ")
+                            mono_dict[key_value[0]] = key_value[1]
+                        meta_dict["MonoInfo"] = mono_dict
                     elif parsing_case == ParsingCase.id_info:
                         comment_lines = line.split("  ")
                         meta_dict["IDInfo"] = comment_lines
