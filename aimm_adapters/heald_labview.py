@@ -16,10 +16,23 @@ tiled serve config config.yml
 import os
 from pathlib import Path
 
-import pandas
+import pandas as pd
+from enum import Enum
 from tiled.trees.in_memory import Tree
 from tiled.readers.dataframe import DataFrameAdapter
 
+class ParsingCase(Enum):
+    column = 1
+    user = 2
+    scan = 3
+    amplifier = 4
+    analog = 5
+    mono = 6
+    id_info = 7
+    slit = 8
+    motor = 9
+    panel = 10
+    beamline = 11
 
 def parse_heald_labview(file):
     lines = file.readlines()
@@ -153,7 +166,7 @@ def parse_heald_labview(file):
 def build_reader(filepath):
     "An another approach"
     with open(filepath) as file:
-        metadata, df = parse_thing(file)
+        metadata, df = parse_heald_labview(file)
     return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
 
 
