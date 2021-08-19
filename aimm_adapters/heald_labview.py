@@ -21,6 +21,7 @@ from enum import Enum
 from tiled.trees.in_memory import Tree
 from tiled.readers.dataframe import DataFrameAdapter
 
+
 class ParsingCase(Enum):
     column = 1
     user = 2
@@ -33,6 +34,7 @@ class ParsingCase(Enum):
     motor = 9
     panel = 10
     beamline = 11
+
 
 def parse_heald_labview(file):
     lines = file.readlines()
