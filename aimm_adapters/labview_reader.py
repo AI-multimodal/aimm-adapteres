@@ -109,22 +109,22 @@ class LabviewFileReader:
                         comment_lines = line.split("  ")
                         amplifier_dict = {}
                         for element in comment_lines:
-                            key_value = element.split(": ")
-                            amplifier_dict[key_value[0]] = key_value[1]
+                            key, value = element.split(": ", 1)
+                            amplifier_dict[key] = value
                         meta_dict["AmplifierSensitivities"] = amplifier_dict
                     elif parsing_case == ParsingCase.analog:
                         comment_lines = line.split("  ")
                         analog_dict = {}
                         for element in comment_lines:
-                            key_value = element.split(": ")
-                            analog_dict[key_value[0]] = key_value[1]
+                            key, value = element.split(": ", 1)
+                            analog_dict[key] = value
                         meta_dict["AnalogInputVoltages"] = analog_dict
                     elif parsing_case == ParsingCase.mono:
                         comment_lines = line.split("; ")
                         mono_dict = {}
                         for element in comment_lines:
-                            key_value = element.split(": ")
-                            mono_dict[key_value[0]] = key_value[1]
+                            key, value = element.split(": ", 1)
+                            mono_dict[key] = value
                         meta_dict["MonoInfo"] = mono_dict
                     elif parsing_case == ParsingCase.id_info:
                         comment_lines = line.split("  ")
