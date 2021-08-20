@@ -166,17 +166,14 @@ def parse_heald_labview(file):
 
 
 def build_reader(filepath):
-    "An another approach"
     with open(filepath) as file:
-        metadata, df = parse_heald_labview(file)
+        df, metadata = parse_heald_labview(file)
     return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
 
 
 def is_candidate(filename):
     filename_ext = filename.split(".")
-    if filename_ext[-1].isnumeric():
-        return True
-    return False
+    return filename_ext[-1].isnumeric()
 
 
 class HealdLabViewTree(Tree):
@@ -187,4 +184,4 @@ class HealdLabViewTree(Tree):
             for filename in os.listdir(directory)
             if is_candidate(filename)
         }
-        return super()(mapping)
+        return cls(mapping)
