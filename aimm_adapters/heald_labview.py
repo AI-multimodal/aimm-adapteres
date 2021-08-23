@@ -177,7 +177,6 @@ def is_candidate(filename):
 
 
 class HealdLabViewTree(Tree):
-    
     @classmethod
     def from_directory(cls, directory):
         mapping = {
