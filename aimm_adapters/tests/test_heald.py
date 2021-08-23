@@ -1,7 +1,4 @@
-from pathlib import Path
-
 import pytest
-import os
 
 
 from ..heald_labview import HealdLabViewTree
