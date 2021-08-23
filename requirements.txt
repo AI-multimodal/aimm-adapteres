@@ -1,1 +1,5 @@
 # List required packages in this file, one per line.
+pandas
+tiled.trees.in_memory
+tiled.readers.dataframe
+tiled.client
