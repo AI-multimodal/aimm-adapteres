@@ -1,0 +1,5 @@
+trees:
+  - path: /
+    tree: heald_labview:RIXSImagesAndTable.from_directory
+    args:
+      directory: files/
