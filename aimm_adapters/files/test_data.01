@@ -1,0 +1,12 @@
+# User Comment:
+# This is just a test file
+# Don't take it seriously
+# Just mocking Labview data files
+#
+# Amplifier Sensitivities:
+# Variable1: Some Value  Variable2: Another value  Variable3: One more 
+#
+# Column Headings:
+#Resistance                  Voltage              Current                   Capacitance
+       1.9       2.8       3.7            4.6
+       6.1       4.6       2.3            5.9
