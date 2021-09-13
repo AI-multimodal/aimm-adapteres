@@ -34,6 +34,8 @@ class ParsingCase(Enum):
     motor = 9
     panel = 10
     beamline = 11
+    xia = 12
+    shutter = 13
 
 
 def parse_heald_labview(file):
@@ -100,10 +102,23 @@ def parse_heald_labview(file):
                     parsing_case = ParsingCase.panel
                 elif line.find("Beamline") != -1:
                     parsing_case = ParsingCase.beamline
+                elif line.find("XIA Filters:") != -1:
+                    parsing_case = ParsingCase.xia
+                    continue
+                elif line.find("XIA Shutter Unit:") != -1:
+                    parsing_case = ParsingCase.shutter
+                    continue
 
                 # Reads the following lines to parse a block of information
                 # with a specific format
                 if parsing_case == ParsingCase.column:
+                    line = line.replace("*", " ")
+                    line = line.replace("Mono Energy (alt)", "Mono_Energy_(alt)")
+                    line = line.replace("Scaler preset time", "Scaler_preset_time")
+                    line = line.replace("ID Gap", "ID_Gap")
+                    line = line.replace("XMAP4:DT Corr I0", "XMAP4:DT_Corr_I0")
+                    line = line.replace("tempeXMAP4", "tempe        XMAP4")
+
                     line = line.replace("XMAP12:DT Corr I0", "XMAP12:DT_Corr_I0")
                     line = " ".join(line.split())  # Remove unwanted white spaces
                     headers = line.split()
@@ -142,16 +157,32 @@ def parse_heald_labview(file):
                     comment_lines = line.split("  ")
                     meta_dict["IDInfo"] = comment_lines
                 elif parsing_case == ParsingCase.slit:
-                    comment_lines = line.split("   ")
+                    comment_lines.append(line)
                     meta_dict["SlitInfo"] = comment_lines
                 elif parsing_case == ParsingCase.motor:
-                    comment_lines = line.split("  ")
+                    comment_lines.append(line)
                     meta_dict["MotorPositions"] = comment_lines
                 elif parsing_case == ParsingCase.panel:
                     comment_lines = line.split("; ")
                     meta_dict["File"] = comment_lines
                 elif parsing_case == ParsingCase.beamline:
                     meta_dict["Beamline"] = line
+                elif parsing_case == ParsingCase.xia:
+                    line = line.replace("OUT", "OUT ")
+                    comment_lines = line.split("  ")
+                    xia_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        xia_dict[key] = value
+                    meta_dict["XIAFilter"] = xia_dict
+                elif parsing_case == ParsingCase.shutter:
+                    line = line.replace("OUT", "OUT ")
+                    comment_lines = line.split("  ")
+                    shutter_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        shutter_dict[key] = value
+                    meta_dict["XIAShutterUnit"] = shutter_dict
             else:
                 parsing_case = 0
                 continue
@@ -183,5 +214,26 @@ class HealdLabViewTree(Tree):
             filename: build_reader(Path(directory, filename))
             for filename in os.listdir(directory)
             if is_candidate(filename)
+        }
+        return cls(mapping)
+
+
+class RIXSImagesAndTable(Tree):
+    @classmethod
+    def from_directory(cls, directory):
+        import tifffile
+        from tiled.readers.tiff_sequence import TiffSequenceReader
+
+        mapping = {
+            name: Tree(
+                {
+                    "table": build_reader(Path(directory, name)),
+                    "images": TiffSequenceReader(
+                        tifffile.TiffSequence(f"{Path(directory,name)}.Eiger/*")
+                    ),
+                }
+            )
+            for name in os.listdir(directory)
+            if not os.path.isdir(Path(directory, name))
         }
         return cls(mapping)

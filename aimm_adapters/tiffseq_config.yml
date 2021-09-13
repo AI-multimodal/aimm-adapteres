@@ -1,0 +1,6 @@
+trees:
+  - tree: files
+    path: /
+    args:
+      directory: files
+      subdirectory_handler: tiled.readers.tiff_sequence:subdirectory_handler
