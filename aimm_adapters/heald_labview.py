@@ -113,15 +113,9 @@ def parse_heald_labview(file):
                 # with a specific format
                 if parsing_case == ParsingCase.column:
                     line = line.replace("*", " ")
-                    line = line.replace("Mono Energy (alt)", "Mono_Energy_(alt)")
-                    line = line.replace("Scaler preset time", "Scaler_preset_time")
-                    line = line.replace("ID Gap", "ID_Gap")
-                    line = line.replace("XMAP4:DT Corr I0", "XMAP4:DT_Corr_I0")
                     line = line.replace("tempeXMAP4", "tempe        XMAP4")
 
-                    line = line.replace("XMAP12:DT Corr I0", "XMAP12:DT_Corr_I0")
-                    line = " ".join(line.split())  # Remove unwanted white spaces
-                    headers = line.split()
+                    headers = [term for term in line.split("  ") if term]
                     meta_dict["Columns"] = headers
                     parsing_case = 0
                 elif parsing_case == ParsingCase.user:
