@@ -63,8 +63,7 @@ def parse_columns(file):
             try:
                 sample = list(map(float, sample))
             except ValueError:
-                print("FAIL while reading file: ", file)
-                print(ValueError)
+                print(file.name)
             data_size = len(sample)
             break
 
