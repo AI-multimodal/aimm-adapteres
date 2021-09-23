@@ -1,0 +1,6 @@
+trees:
+  - tree: files
+    path: /
+    args:
+      directory: files/
+      subdirectory_handler: heald_labview:subdirectory_handler

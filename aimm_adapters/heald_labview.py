@@ -201,6 +201,34 @@ def is_candidate(filename):
     return filename_ext[-1].isnumeric()
 
 
+def iter_subdirectory(mapping, path):
+    experiment_group = {}
+    for filepath in path.iterdir():
+        if filepath.name.startswith("."):
+            # Skip hidden files.
+            continue
+        if not filepath.is_file():
+            # Explore subfolder for more labview files recursively
+            sub_mapping = {}
+            mapping[filepath.name] = Tree(sub_mapping)
+            sub_mapping = iter_subdirectory(sub_mapping, filepath)
+            continue
+        if filepath.suffix[1:].isnumeric():
+            if filepath.stem not in mapping:
+                experiment_group[filepath.stem] = {}
+                mapping[filepath.stem] = Tree(experiment_group[filepath.stem])
+            experiment_group[filepath.stem][filepath.name] = build_reader(filepath)
+
+    return mapping
+
+
+def subdirectory_handler(path):
+    mapping = {}
+    heald_tree = Tree(mapping)
+    mapping = iter_subdirectory(mapping, path)
+    return heald_tree
+
+
 class HealdLabViewTree(Tree):
     @classmethod
     def from_directory(cls, directory):
