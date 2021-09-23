@@ -201,32 +201,31 @@ def is_candidate(filename):
     return filename_ext[-1].isnumeric()
 
 
-def iter_subdirectory(heald_tree, path):
-
+def iter_subdirectory(mapping, path):
+    experiment_group = {}
     for filepath in path.iterdir():
         if filepath.name.startswith("."):
             # Skip hidden files.
             continue
         if not filepath.is_file():
             # Explore subfolder for more labview files recursively
-            heald_tree._mapping[filepath.name] = Tree({})
-            heald_tree._mapping[filepath.name] = iter_subdirectory(
-                heald_tree._mapping[filepath.name], filepath
-            )
+            sub_mapping = {}
+            mapping[filepath.name] = Tree(sub_mapping)
+            sub_mapping = iter_subdirectory(sub_mapping, filepath)
             continue
         if filepath.suffix[1:].isnumeric():
-            if filepath.stem not in heald_tree._mapping:
-                heald_tree._mapping[filepath.stem] = Tree({})
-            heald_tree._mapping[filepath.stem]._mapping[filepath.name] = build_reader(
-                filepath
-            )
+            if filepath.stem not in mapping:
+                experiment_group[filepath.stem] = {}
+                mapping[filepath.stem] = Tree(experiment_group[filepath.stem])
+            experiment_group[filepath.stem][filepath.name] = build_reader(filepath)
 
-    return heald_tree
+    return mapping
 
 
 def subdirectory_handler(path):
-    heald_tree = Tree({})
-    heald_tree = iter_subdirectory(heald_tree, path)
+    mapping = {}
+    heald_tree = Tree(mapping)
+    mapping = iter_subdirectory(mapping, path)
     return heald_tree
 
 
