@@ -20,6 +20,7 @@ import pandas as pd
 from enum import Enum
 from tiled.trees.in_memory import Tree
 from tiled.readers.dataframe import DataFrameAdapter
+from tiled.server.object_cache import with_object_cache
 
 
 class ParsingCase(Enum):
@@ -217,7 +218,8 @@ def iter_subdirectory(mapping, path):
             if filepath.stem not in mapping:
                 experiment_group[filepath.stem] = {}
                 mapping[filepath.stem] = Tree(experiment_group[filepath.stem])
-            experiment_group[filepath.stem][filepath.name] = build_reader(filepath)
+            cache_key = (Path(__file__).stem, filepath)
+            experiment_group[filepath.stem][filepath.name] = with_object_cache(cache_key, build_reader, filepath)
 
     return mapping
 
