@@ -219,7 +219,9 @@ def iter_subdirectory(mapping, path):
                 experiment_group[filepath.stem] = {}
                 mapping[filepath.stem] = Tree(experiment_group[filepath.stem])
             cache_key = (Path(__file__).stem, filepath)
-            experiment_group[filepath.stem][filepath.name] = with_object_cache(cache_key, build_reader, filepath)
+            experiment_group[filepath.stem][filepath.name] = with_object_cache(
+                cache_key, build_reader, filepath
+            )
 
     return mapping
 
