@@ -283,11 +283,12 @@ class NormalizedReader:
             filepath,
         )  # exact same key you used for build_reader
         # Make an UNnoramlized reader first.
-        # Use the cache so that this unnormalized reader can be shared across a normalized tree and an unnormalized tree.
+        # Use the cache so that this unnormalized reader can be shared across 
+        # a normalized tree and an unnormalized tree.
         self._unnormalized_reader = with_object_cache(cache_key, build_reader, filepath)
-        # self._unnormalized_reader = with_object_cache(cache_key, subdirectory_handler, filepath)
 
     def read(self):
         result = self._unnormalized_reader.read()
-        # Make changes to result (altering column names, removing extraneous columns) and then return it.
+        # Make changes to result (altering column names, removing extraneous columns)
+        # and then return it.
         return normalize_dataframe(result)
