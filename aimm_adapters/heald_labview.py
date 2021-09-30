@@ -116,7 +116,7 @@ def parse_heald_labview(file):
                     line = line.replace("*", " ")
                     line = line.replace("tempeXMAP4", "tempe        XMAP4")
 
-                    headers = [term for term in line.split("  ") if term]
+                    headers = [term.lstrip() for term in line.split("  ") if term]
                     meta_dict["Columns"] = headers
                     parsing_case = 0
                 elif parsing_case == ParsingCase.user:
@@ -233,6 +233,17 @@ def subdirectory_handler(path):
     return heald_tree
 
 
+def normalize_dataframe(df):
+    keywords = ["Mono Energy", "I0", "It", "Iref"]
+    column_names = set(df.columns.values.tolist())
+    norm_df = pd.DataFrame()
+    for key in keywords:
+        if key in column_names:
+            norm_df[key] = df[key]
+
+    return norm_df
+
+
 class HealdLabViewTree(Tree):
     @classmethod
     def from_directory(cls, directory):
@@ -263,3 +274,20 @@ class RIXSImagesAndTable(Tree):
             if not os.path.isdir(Path(directory, name))
         }
         return cls(mapping)
+
+
+class NormalizedReader:
+    def __init__(self, filepath):
+        cache_key = (
+            Path(__file__).stem,
+            filepath,
+        )  # exact same key you used for build_reader
+        # Make an UNnoramlized reader first.
+        # Use the cache so that this unnormalized reader can be shared across a normalized tree and an unnormalized tree.
+        self._unnormalized_reader = with_object_cache(cache_key, build_reader, filepath)
+        # self._unnormalized_reader = with_object_cache(cache_key, subdirectory_handler, filepath)
+
+    def read(self):
+        result = self._unnormalized_reader.read()
+        # Make changes to result (altering column names, removing extraneous columns) and then return it.
+        return normalize_dataframe(result)

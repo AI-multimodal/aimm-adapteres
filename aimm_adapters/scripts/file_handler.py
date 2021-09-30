@@ -49,7 +49,9 @@ def parse_columns(file):
                     line = line.replace("*", " ")
                     line = line.replace("tempeXMAP4", "tempe        XMAP4")
 
-                    parsed_columns = [term for term in line.split("  ") if term]
+                    parsed_columns = [
+                        term.lstrip() for term in line.split("  ") if term
+                    ]
                     parsing_case = 0
                     break
             else:
@@ -150,6 +152,32 @@ def iter_subdirectory_handler_v2(mapping, path):
     return mapping
 
 
+def iter_subdirectory_handler_v3(mapping, path, keyword):
+    for filepath in path.iterdir():
+        if filepath.name.startswith("."):
+            # Skip hidden files.
+            continue
+        if not filepath.is_file():
+            # Explore subfolder for more labview files recursively
+            mapping[filepath.name] = {}
+            mapping[filepath.name] = iter_subdirectory_handler_v3(
+                mapping[filepath.name], filepath, keyword
+            )
+            continue
+        if filepath.suffix[1:].isnumeric():
+            with open(filepath) as file:
+                is_column = find_in_file(file, keyword)
+
+            if filepath.stem not in mapping:
+                mapping[filepath.stem] = {keyword: [], "None": []}
+            if is_column:
+                mapping[filepath.stem][keyword].append(filepath.name)
+            else:
+                mapping[filepath.stem]["None"].append(filepath.name)
+
+    return mapping
+
+
 def iter_dictionary_read(dict_input, level, str_buffer):
     spacing = "--"
 
@@ -169,10 +197,24 @@ def write_file_structure():
 
     print("Generating file...")
     mapping = {}
-    mapping = iter_subdirectory_handler_v2(mapping, Path("../files/"))
+    # mapping = iter_subdirectory_handler_v2(mapping, Path("../files/"))
+    mapping = iter_subdirectory_handler_v3(mapping, Path("../files/"), "Iref")
     string_buffer = iter_dictionary_read(mapping, 0, "")
 
-    with open("labview_file_tree.txt", "w") as file:
+    # ith open("labview_file_tree.txt", "w") as file:
+    with open("keyword_file_tree.txt", "w") as file:
         file.write(string_buffer)
 
     print("Done!!")
+
+
+def find_in_file(file, keyword):
+    column_names, column_size = parse_columns(file)
+    column_set = set(column_names)
+    if keyword in column_set:
+        return True
+    return False
+
+
+if __name__ == "__main__":
+    write_file_structure()
