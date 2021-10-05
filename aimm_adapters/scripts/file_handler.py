@@ -231,7 +231,7 @@ def iter_count_keword(path, keyword):
     return counter, total
 
 
-def iter_unique_keywords(path, tracked_set, start):
+def iter_unique_keywords(path, tracked_set, start=False, count=False):
     # Recursively, navigates through subfolders and labview files and finds
     # unique keywords that used in the columns names throughout the entire dataset
 
@@ -241,18 +241,26 @@ def iter_unique_keywords(path, tracked_set, start):
             continue
         if not filepath.is_file():
             # Explore subfolder for more labview files recursively
-            tracked_set, start = iter_unique_keywords(filepath, tracked_set, start)
+            tracked_set, start = iter_unique_keywords(
+                filepath, tracked_set, start, count
+            )
             continue
         if filepath.suffix[1:].isnumeric():
             with open(filepath) as file:
                 column_names, column_size = parse_columns(file, no_device=True)
                 column_set = set(column_names)
-                if "Mono Energy" not in column_set:
-                    if start:
-                        tracked_set = column_set.copy()
-                        start = False
+                if "Mono Energy" in column_set:
+                    if not count:
+                        if start:
+                            tracked_set = column_set.copy()
+                            start = False
+                        else:
+                            tracked_set = tracked_set | column_set
                     else:
-                        tracked_set = tracked_set | column_set
+                        for set_name in column_set:
+                            if set_name not in tracked_set:
+                                tracked_set[set_name] = 0
+                            tracked_set[set_name] += 1
 
     return tracked_set, start
 
@@ -285,7 +293,7 @@ def write_file_structure(keyword):
     string_buffer = iter_dictionary_read(mapping, 0, "")
 
     # with open("labview_file_tree.txt", "w") as file:
-    filename = "files/"+keyword + "_file_tree.txt"
+    filename = "files/" + keyword + "_file_tree.txt"
     with open(filename, "w") as file:
         file.write(string_buffer)
 
@@ -300,10 +308,26 @@ def find_in_file(file, keyword):
     return False
 
 
-def find_unique_keyword(keyword):
-    start = True
+def find_unique_keywords():
     tracked_set = set()
-    tracked_set, start = iter_unique_keywords(Path("../files/"), tracked_set, start)
+    tracked_set, start = iter_unique_keywords(
+        Path("../files/"), tracked_set, start=True
+    )
     tracked_list = list(tracked_set)
     tracked_list.sort()
     print(tracked_list)
+
+
+def count_unique_words():
+    tracked_dict = dict()
+    tracked_dict, start = iter_unique_keywords(
+        Path("../files/"), tracked_dict, count=True
+    )
+    sorted_list = list(
+        sorted(tracked_dict.items(), key=lambda item: item[1], reverse=True)
+    )
+    print(sorted_list)
+
+
+if __name__ == "__main__":
+    find_unique_keywords()
