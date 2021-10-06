@@ -63,7 +63,7 @@ def parse_columns(file, no_device=False):
                             if term:
                                 found_index = term.find(":")
                                 if found_index != -1:
-                                    temp_term = term[found_index + 1 :]  # noqa: E261
+                                    temp_term = term[found_index + 1 :]  # noqa: E203
                                     parsed_columns.append(temp_term)
                                 else:
                                     parsed_columns.append(term.lstrip())
