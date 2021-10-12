@@ -29,6 +29,7 @@ def parse_columns(file, no_device=False):
     parsing_case = 0
     parsed_columns = []
     data_size = 0
+    first_line = True
 
     for line in lines:
         line = line.rstrip()
@@ -37,8 +38,9 @@ def parse_columns(file, no_device=False):
             if len(line) > 2:
                 # The next line after the Column Headinds tag is the only line
                 # that does not include a white space after the comment/hash symbol
-                if parsing_case == ParsingCase.column:
+                if parsing_case == ParsingCase.column or first_line:
                     line = line[1:]
+                    first_line = False
                 else:
                     line = line[2:]
 
@@ -52,13 +54,14 @@ def parse_columns(file, no_device=False):
                 if parsing_case == ParsingCase.column:
                     line = line.replace("*", " ")
                     line = line.replace("tempeXMAP4", "tempe        XMAP4")
+                    line = line.replace("scatter_Sum XMAP4", "scatter_Sum        XMAP4")
+                    line = line.replace("Stats1:TS20-", "Stats1:T        S20-")
 
                     if not no_device:
                         parsed_columns = [
                             term.lstrip() for term in line.split("  ") if term
                         ]
                     else:
-                        parsed_columns = []
                         for term in line.split("  "):
                             if term:
                                 found_index = term.find(":")
@@ -67,22 +70,23 @@ def parse_columns(file, no_device=False):
                                     parsed_columns.append(temp_term)
                                 else:
                                     parsed_columns.append(term.lstrip())
-                    parsing_case = 0
-                    break
+                    # parsing_case = 0
+                    # break
             else:
                 parsing_case = 0
                 continue
 
         # Parse data
         else:
-            line = " ".join(line.split())  # Remove unwanted white spaces
-            sample = line.split()
-            try:
-                sample = list(map(float, sample))
-            except ValueError:
-                print(file.name)
-            data_size = len(sample)
-            break
+            if parsing_case == ParsingCase.column:
+                line = " ".join(line.split())  # Remove unwanted white spaces
+                sample = line.split()
+                try:
+                    sample = list(map(float, sample))
+                except ValueError:
+                    print(file.name)
+                data_size = len(sample)
+                break
 
     return parsed_columns, data_size
 
@@ -205,7 +209,7 @@ def iter_subdirectory_handler_v3(mapping, path, keyword):
     return mapping
 
 
-def iter_count_keword(path, keyword):
+def iter_count_keyword(path, keyword):
     # Recursively, counts the number of times that a keyword is used in all the files
     # of the dataset
 
@@ -217,7 +221,7 @@ def iter_count_keword(path, keyword):
             continue
         if not filepath.is_file():
             # Explore subfolder for more labview files recursively
-            temp_counter, temp_total = iter_count_keword(filepath, keyword)
+            temp_counter, temp_total = iter_count_keyword(filepath, keyword)
             counter += temp_counter
             total += temp_total
             continue
@@ -249,7 +253,7 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False):
             with open(filepath) as file:
                 column_names, column_size = parse_columns(file, no_device=True)
                 column_set = set(column_names)
-                if "Mono Energy" in column_set:
+                if "Mono Energy" in column_set and column_size > 0:
                     if not count:
                         if start:
                             tracked_set = column_set.copy()

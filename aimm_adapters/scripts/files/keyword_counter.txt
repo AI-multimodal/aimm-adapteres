@@ -1,4 +1,12 @@
+# include empty files with correct column-name strucure
 Mono Energy = (3880, 7644)
 I0 = (7368, 7644)
 It = (182, 7644)
 Iref = (1317, 7644)
+
+# non-empty files
+('Scaler preset time', 3852), ('None', 1), 3853
+('I0', 3693), ('IO', 106), ('I-0', 54), 3853
+('IT', 1375), ('I1', 1179), ('I', 1012), ('It', 155), 3721, (('Trans', 10), 'I/pips')?
+('Iref', 882), ('IRef', 538), ('I2', 477), ('IR', 365), ('IREF', 40), 2302, (('DiodeRef', 179), ('Cal(Iref)', 111), ('Ref', 10))?
+('Ifluor', 106), ('IF', 85), ('If', 63), 254
