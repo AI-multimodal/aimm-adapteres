@@ -3,4 +3,5 @@ trees:
     path: /
     args:
       directory: files/
+      normalize: True
       subdirectory_handler: heald_labview:subdirectory_handler
