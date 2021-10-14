@@ -1,7 +1,11 @@
 trees:
   - tree: files
-    path: /
+    path: /unnormalized
     args:
       directory: files/
-      normalize: True
       subdirectory_handler: heald_labview:subdirectory_handler
+  - tree: files
+    path: /normalized
+    args:
+      directory: files/
+      subdirectory_handler: heald_labview:normalized_subdirectory_handler

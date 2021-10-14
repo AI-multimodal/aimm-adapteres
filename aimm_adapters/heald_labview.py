@@ -230,7 +230,7 @@ def iter_subdirectory(mapping, path, normalize=False):
             # Explore subfolder for more labview files recursively
             sub_mapping = {}
             mapping[filepath.name] = Tree(sub_mapping)
-            sub_mapping = iter_subdirectory(sub_mapping, filepath)
+            sub_mapping = iter_subdirectory(sub_mapping, filepath, normalize)
             continue
         if filepath.suffix[1:].isnumeric():
             if filepath.stem not in mapping:
@@ -249,10 +249,17 @@ def iter_subdirectory(mapping, path, normalize=False):
     return mapping
 
 
-def subdirectory_handler(path, normalize=False):
+def subdirectory_handler(path):
     mapping = {}
     heald_tree = Tree(mapping)
-    mapping = iter_subdirectory(mapping, path, normalize)
+    mapping = iter_subdirectory(mapping, path)
+    return heald_tree
+
+
+def normalized_subdirectory_handler(path):
+    mapping = {}
+    heald_tree = Tree(mapping)
+    mapping = iter_subdirectory(mapping, path, normalize=True)
     return heald_tree
 
 
@@ -269,7 +276,7 @@ def normalize_dataframe(df):
     norm_df = None
     if energy in column_names:
         norm_df = pd.DataFrame()
-        norm_df["Energy"] = df[energy]
+        norm_df["energy"] = df[energy]
         for key, value in keywords.items():
             if key != "time":
                 for name in value:
