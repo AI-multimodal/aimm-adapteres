@@ -39,13 +39,15 @@ class ParsingCase(Enum):
     shutter = 13
 
 
-def parse_heald_labview(file):
+def parse_heald_labview(file, no_device=False):
     lines = file.readlines()
 
     parsing_case = 0
+    headers = []
     data = []
     comment_lines = []
     meta_dict = {}
+    first_line = True
 
     for line in lines:
         line = line.rstrip()
@@ -54,8 +56,9 @@ def parse_heald_labview(file):
             if len(line) > 2:
                 # The next line after the Column Headinds tag is the only line
                 # that does not include a white space after the comment/hash symbol
-                if parsing_case == ParsingCase.column:
+                if parsing_case == ParsingCase.column or first_line:
                     line = line[1:]
+                    first_line = False
                 else:
                     line = line[2:]
 
@@ -115,8 +118,22 @@ def parse_heald_labview(file):
                 if parsing_case == ParsingCase.column:
                     line = line.replace("*", " ")
                     line = line.replace("tempeXMAP4", "tempe        XMAP4")
+                    line = line.replace("scatter_Sum XMAP4", "scatter_Sum        XMAP4")
+                    line = line.replace("Stats1:TS20-", "Stats1:T        S20-")
 
-                    headers = [term for term in line.split("  ") if term]
+                    if not no_device:
+                        headers = [term.lstrip() for term in line.split("  ") if term]
+                    else:
+                        for term in line.split("  "):
+                            if term:
+                                found_index = term.find(":")
+                                if found_index != -1:
+                                    temp_term = term[found_index + 1 :]  # noqa: E203
+                                    headers.append(temp_term)
+                                else:
+                                    headers.append(term.lstrip())
+
+                    # headers = [term.lstrip() for term in line.split("  ") if term]
                     meta_dict["Columns"] = headers
                     parsing_case = 0
                 elif parsing_case == ParsingCase.user:
@@ -188,12 +205,13 @@ def parse_heald_labview(file):
             sample = list(map(float, sample))
             data.append(sample)
     df = pd.DataFrame(data, columns=headers)
+
     return df, meta_dict
 
 
-def build_reader(filepath):
+def build_reader(filepath, no_device=False):
     with open(filepath) as file:
-        df, metadata = parse_heald_labview(file)
+        df, metadata = parse_heald_labview(file, no_device)
     return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
 
 
@@ -202,7 +220,7 @@ def is_candidate(filename):
     return filename_ext[-1].isnumeric()
 
 
-def iter_subdirectory(mapping, path):
+def iter_subdirectory(mapping, path, normalize=False):
     experiment_group = {}
     for filepath in path.iterdir():
         if filepath.name.startswith("."):
@@ -212,16 +230,21 @@ def iter_subdirectory(mapping, path):
             # Explore subfolder for more labview files recursively
             sub_mapping = {}
             mapping[filepath.name] = Tree(sub_mapping)
-            sub_mapping = iter_subdirectory(sub_mapping, filepath)
+            sub_mapping = iter_subdirectory(sub_mapping, filepath, normalize)
             continue
         if filepath.suffix[1:].isnumeric():
             if filepath.stem not in mapping:
                 experiment_group[filepath.stem] = {}
                 mapping[filepath.stem] = Tree(experiment_group[filepath.stem])
-            cache_key = (Path(__file__).stem, filepath)
-            experiment_group[filepath.stem][filepath.name] = with_object_cache(
-                cache_key, build_reader, filepath
-            )
+            if normalize:
+                norm_node = NormalizedReader(filepath)
+                if norm_node.read() is not None:
+                    experiment_group[filepath.stem][filepath.name] = norm_node.read()
+            else:
+                cache_key = (Path(__file__).stem, filepath)
+                experiment_group[filepath.stem][filepath.name] = with_object_cache(
+                    cache_key, build_reader, filepath
+                )
 
     return mapping
 
@@ -231,6 +254,37 @@ def subdirectory_handler(path):
     heald_tree = Tree(mapping)
     mapping = iter_subdirectory(mapping, path)
     return heald_tree
+
+
+def normalized_subdirectory_handler(path):
+    mapping = {}
+    heald_tree = Tree(mapping)
+    mapping = iter_subdirectory(mapping, path, normalize=True)
+    return heald_tree
+
+
+def normalize_dataframe(df):
+    energy = "Mono Energy"
+    keywords = {
+        "time": ["Scaler preset time", "None"],
+        "i0": ["I0", "IO", "I-0"],
+        "it": ["IT", "I1", "I", "It"],
+        "ir": ["Iref", "IRef", "I2", "IR", "IREF"],
+        "if": ["Ifluor", "IF", "If"],
+    }
+    column_names = set(df.columns.values.tolist())
+    norm_df = None
+    if energy in column_names:
+        norm_df = pd.DataFrame()
+        norm_df["energy"] = df[energy]
+        for key, value in keywords.items():
+            if key != "time":
+                for name in value:
+                    if name in column_names:
+                        norm_df[key] = df[name]
+                        break
+
+    return norm_df
 
 
 class HealdLabViewTree(Tree):
@@ -263,3 +317,31 @@ class RIXSImagesAndTable(Tree):
             if not os.path.isdir(Path(directory, name))
         }
         return cls(mapping)
+
+
+class NormalizedReader:
+    def __init__(self, filepath):
+        cache_key = (
+            Path(__file__).stem,
+            filepath,
+        )  # exact same key you used for build_reader
+        # Make an UNnoramlized reader first.
+        # Use the cache so that this unnormalized reader can be shared across
+        # a normalized tree and an unnormalized tree.
+        self._unnormalized_reader = with_object_cache(
+            cache_key, build_reader, filepath, no_device=True
+        )
+
+    def read(self):
+        result = self._unnormalized_reader.read()
+        # Make changes to result (altering column names, removing extraneous columns)
+        # and then return it.
+        norm_df = normalize_dataframe(result)
+        if norm_df is None:
+            return norm_df
+
+        # norm_metadata = {'Columns':self._unnormalized_reader.metadata['Columns']}
+        norm_metadata = {"Columns": list(norm_df.columns)}
+        return DataFrameAdapter.from_pandas(
+            norm_df, metadata=norm_metadata, npartitions=1
+        )
