@@ -20,7 +20,7 @@ class ParsingCase(Enum):
 
 
 def parse_columns(file, no_device=False):
-    # Abbreviated parsing method that is ased on the method used in heald_labview.py.
+    # Abbreviated parsing method that is based on the method used in heald_labview.py.
     # It focuses on extracting the metadata for the column names to be used in more
     # detailed analysis.
 
@@ -64,12 +64,27 @@ def parse_columns(file, no_device=False):
                     else:
                         for term in line.split("  "):
                             if term:
-                                found_index = term.find(":")
-                                if found_index != -1:
-                                    temp_term = term[found_index + 1 :]  # noqa: E203
-                                    parsed_columns.append(temp_term)
-                                else:
+                                term = term.lstrip()
+                                ch_list = find_char_indexes(term, ":")
+                                if len(ch_list) == 0:
                                     parsed_columns.append(term.lstrip())
+                                else:
+                                    lower_dev_names = set(["pncaux", "pncid"])
+                                    if (
+                                        term[: ch_list[0]].isupper()
+                                        or term[: ch_list[0]] in lower_dev_names
+                                    ):
+                                        temp_term = term[ch_list[0] + 1 :]
+                                    else:
+                                        temp_term = term[: ch_list[-1]].lstrip()
+                                    parsed_columns.append(temp_term)
+
+                                # found_index = term.find(":")
+                                # if found_index != -1:
+                                #     temp_term = term[found_index + 1 :]  # noqa: E203
+                                #     parsed_columns.append(temp_term)
+                                # else:
+                                #     parsed_columns.append(term.lstrip())
                     # parsing_case = 0
                     # break
             else:
@@ -89,6 +104,10 @@ def parse_columns(file, no_device=False):
                 break
 
     return parsed_columns, data_size
+
+
+def find_char_indexes(word, char):
+    return [i for i, val in enumerate(word) if val == char]
 
 
 def iter_subdirectory_handler(mapping, path):
@@ -235,7 +254,7 @@ def iter_count_keyword(path, keyword):
     return counter, total
 
 
-def iter_unique_keywords(path, tracked_set, start=False, count=False):
+def iter_unique_keywords(path, tracked_set, start=False, count=False, collection=None):
     # Recursively, navigates through subfolders and labview files and finds
     # unique keywords that used in the columns names throughout the entire dataset
 
@@ -245,16 +264,40 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False):
             continue
         if not filepath.is_file():
             # Explore subfolder for more labview files recursively
-            tracked_set, start = iter_unique_keywords(
-                filepath, tracked_set, start, count
+            tracked_set, start, collection = iter_unique_keywords(
+                filepath, tracked_set, start, count, collection
             )
             continue
         if filepath.suffix[1:].isnumeric():
             with open(filepath) as file:
-                column_names, column_size = parse_columns(file, no_device=True)
+                try:
+                    column_names, column_size = parse_columns(file, no_device=True)
+                except:
+                    print("Error: ", filepath)
                 column_set = set(column_names)
                 if "Mono Energy" in column_set and column_size > 0:
                     if not count:
+                        if (
+                            "Ifluor" not in column_set
+                            and "IF" not in column_set
+                            and "If" not in column_set
+                            and "Cal Diode" not in column_set
+                            and "Cal-diode" not in column_set
+                            and "CalDiode" not in column_set
+                            and "Cal_Diode" not in column_set
+                            and "Cal_diode" not in column_set
+                            and "Canberra" not in column_set
+                        ):
+                            # if "Ifluor" in column_set or "IF" in column_set or "If" in column_set or "Cal Diode" in column_set or "Cal-diode" in column_set or "CalDiode" in column_set or "Cal_Diode" in column_set or "Cal_diode" in column_set or "Canberra" in column_set:
+                            # if "Ref" in column_set:
+                            #    total += 1
+                            collection_names = ",".join(column_names)
+                            collection.add(collection_names)
+                            # if collection_names not in collection:
+                            #     collection[collection_names]=[str(filepath)]
+                            # else:
+                            #     collection[collection_names].append(str(filepath))
+                            print("Not Unique: ", filepath)
                         if start:
                             tracked_set = column_set.copy()
                             start = False
@@ -266,7 +309,7 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False):
                                 tracked_set[set_name] = 0
                             tracked_set[set_name] += 1
 
-    return tracked_set, start
+    return tracked_set, start, collection
 
 
 def iter_dictionary_read(dict_input, level, str_buffer):
@@ -314,17 +357,19 @@ def find_in_file(file, keyword):
 
 def find_unique_keywords():
     tracked_set = set()
-    tracked_set, start = iter_unique_keywords(
-        Path("../files/"), tracked_set, start=True
+    collection = set()
+    tracked_set, start, collection = iter_unique_keywords(
+        Path("../files/"), tracked_set, start=True, collection=collection
     )
     tracked_list = list(tracked_set)
     tracked_list.sort()
-    print(tracked_list)
+    print(tracked_list, len(tracked_list))
+    print(collection)
 
 
 def count_unique_words():
     tracked_dict = dict()
-    tracked_dict, start = iter_unique_keywords(
+    tracked_dict, start, collection = iter_unique_keywords(
         Path("../files/"), tracked_dict, count=True
     )
     sorted_list = list(
@@ -335,3 +380,4 @@ def count_unique_words():
 
 if __name__ == "__main__":
     find_unique_keywords()
+    # count_unique_words()

@@ -126,12 +126,29 @@ def parse_heald_labview(file, no_device=False):
                     else:
                         for term in line.split("  "):
                             if term:
-                                found_index = term.find(":")
-                                if found_index != -1:
-                                    temp_term = term[found_index + 1 :]  # noqa: E203
-                                    headers.append(temp_term)
+                                term = term.lstrip()
+                                index_list = find_char_indexes(term, ":")
+                                if len(index_list) == 0:
+                                    headers.append(term)
                                 else:
-                                    headers.append(term.lstrip())
+                                    lower_dev_names = set(["pncaux", "pncid"])
+                                    if (
+                                        term[: index_list[0]].isupper()
+                                        or term[: index_list[0]] in lower_dev_names
+                                    ):
+                                        temp_term = term[
+                                            index_list[0] + 1 :
+                                        ]  # noqa: E203
+                                    else:
+                                        temp_term = term[: index_list[-1]]
+                                    headers.append(temp_term)
+
+                                # found_index = term.find(":")
+                                # if found_index != -1:
+                                #     temp_term = term[found_index + 1 :]  # noqa: E203
+                                #     headers.append(temp_term)
+                                # else:
+                                #     headers.append(term.lstrip())
 
                     # headers = [term.lstrip() for term in line.split("  ") if term]
                     meta_dict["Columns"] = headers
@@ -209,6 +226,10 @@ def parse_heald_labview(file, no_device=False):
     return df, meta_dict
 
 
+def find_char_indexes(word, char):
+    return [i for i, val in enumerate(word) if val == char]
+
+
 def build_reader(filepath, no_device=False):
     with open(filepath) as file:
         df, metadata = parse_heald_labview(file, no_device)
@@ -222,29 +243,47 @@ def is_candidate(filename):
 
 def iter_subdirectory(mapping, path, normalize=False):
     experiment_group = {}
-    for filepath in path.iterdir():
-        if filepath.name.startswith("."):
+    filepaths = sorted(path.iterdir())
+    for i in range(len(filepaths)):
+        if filepaths[i].name.startswith("."):
             # Skip hidden files.
             continue
-        if not filepath.is_file():
+        if not filepaths[i].is_file():
             # Explore subfolder for more labview files recursively
             sub_mapping = {}
-            mapping[filepath.name] = Tree(sub_mapping)
-            sub_mapping = iter_subdirectory(sub_mapping, filepath, normalize)
+            sub_mapping = iter_subdirectory(sub_mapping, filepaths[i], normalize)
+            if sub_mapping:
+                mapping[filepaths[i].name] = Tree(sub_mapping)
             continue
-        if filepath.suffix[1:].isnumeric():
-            if filepath.stem not in mapping:
-                experiment_group[filepath.stem] = {}
-                mapping[filepath.stem] = Tree(experiment_group[filepath.stem])
+        if filepaths[i].suffix[1:].isnumeric():
+            if filepaths[i].stem not in experiment_group:
+                experiment_group[filepaths[i].stem] = {}
+                if not normalize:
+                    mapping[filepaths[i].stem] = Tree(
+                        experiment_group[filepaths[i].stem]
+                    )
             if normalize:
-                norm_node = NormalizedReader(filepath)
-                if norm_node.read() is not None:
-                    experiment_group[filepath.stem][filepath.name] = norm_node.read()
+                norm_node = NormalizedReader(filepaths[i]).read()
+                if norm_node is not None:
+                    experiment_group[filepaths[i].stem][filepaths[i].name] = norm_node
             else:
-                cache_key = (Path(__file__).stem, filepath)
-                experiment_group[filepath.stem][filepath.name] = with_object_cache(
-                    cache_key, build_reader, filepath
-                )
+                cache_key = (Path(__file__).stem, filepaths[i])
+                experiment_group[filepaths[i].stem][
+                    filepaths[i].name
+                ] = with_object_cache(cache_key, build_reader, filepaths[i])
+
+        if normalize:
+            if filepaths[i].stem in experiment_group:
+                if i == len(filepaths) - 1:
+                    if len(experiment_group[filepaths[i].stem]) != 0:
+                        mapping[filepaths[i].stem] = Tree(
+                            experiment_group[filepaths[i].stem]
+                        )
+                elif filepaths[i].stem != filepaths[i + 1].stem:
+                    if len(experiment_group[filepaths[i].stem]) != 0:
+                        mapping[filepaths[i].stem] = Tree(
+                            experiment_group[filepaths[i].stem]
+                        )
 
     return mapping
 
@@ -268,9 +307,19 @@ def normalize_dataframe(df):
     keywords = {
         "time": ["Scaler preset time", "None"],
         "i0": ["I0", "IO", "I-0"],
-        "it": ["IT", "I1", "I", "It"],
-        "ir": ["Iref", "IRef", "I2", "IR", "IREF"],
-        "if": ["Ifluor", "IF", "If"],
+        "it": ["IT", "I1", "I", "It", "Trans"],
+        "ir": ["Iref", "IRef", "I2", "IR", "IREF", "DiodeRef", "Cal(Iref)", "Ref"],
+        "if": [
+            "Ifluor",
+            "IF",
+            "If",
+            "Cal Diode",
+            "Cal-diode",
+            "CalDiode",
+            "Cal_Diode",
+            "Cal_diode",
+            "Canberra",
+        ],
     }
     column_names = set(df.columns.values.tolist())
     norm_df = None
@@ -279,10 +328,18 @@ def normalize_dataframe(df):
         norm_df["energy"] = df[energy]
         for key, value in keywords.items():
             if key != "time":
+                counter = 0
                 for name in value:
                     if name in column_names:
                         norm_df[key] = df[name]
                         break
+                    counter += 1
+
+                    # Reached the end of the list and found nothing for one variable
+                    # Must return None because it does not meet the XDI standards
+                    if counter == len(value):
+                        norm_df = None
+                        return norm_df
 
     return norm_df
 
