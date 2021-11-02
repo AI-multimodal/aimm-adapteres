@@ -74,7 +74,7 @@ def parse_columns(file, no_device=False):
                                         term[: ch_list[0]].isupper()
                                         or term[: ch_list[0]] in lower_dev_names
                                     ):
-                                        temp_term = term[ch_list[0] + 1 :] # noqa: E203
+                                        temp_term = term[ch_list[0] + 1 :]  # noqa: E203
                                     else:
                                         temp_term = term[: ch_list[-1]].lstrip()
                                     parsed_columns.append(temp_term)

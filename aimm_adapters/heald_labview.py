@@ -137,8 +137,8 @@ def parse_heald_labview(file, no_device=False):
                                         or term[: index_list[0]] in lower_dev_names
                                     ):
                                         temp_term = term[
-                                            index_list[0] + 1 : # noqa: E203
-                                        ]  # noqa: E203
+                                            index_list[0] + 1 :  # noqa: E203
+                                        ]
                                     else:
                                         temp_term = term[: index_list[-1]]
                                     headers.append(temp_term)
