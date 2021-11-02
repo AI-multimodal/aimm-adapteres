@@ -137,20 +137,12 @@ def parse_heald_labview(file, no_device=False):
                                         or term[: index_list[0]] in lower_dev_names
                                     ):
                                         temp_term = term[
-                                            index_list[0] + 1 :
+                                            index_list[0] + 1 : # noqa: E203
                                         ]  # noqa: E203
                                     else:
                                         temp_term = term[: index_list[-1]]
                                     headers.append(temp_term)
 
-                                # found_index = term.find(":")
-                                # if found_index != -1:
-                                #     temp_term = term[found_index + 1 :]  # noqa: E203
-                                #     headers.append(temp_term)
-                                # else:
-                                #     headers.append(term.lstrip())
-
-                    # headers = [term.lstrip() for term in line.split("  ") if term]
                     meta_dict["Columns"] = headers
                     parsing_case = 0
                 elif parsing_case == ParsingCase.user:

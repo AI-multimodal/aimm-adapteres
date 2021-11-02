@@ -74,19 +74,11 @@ def parse_columns(file, no_device=False):
                                         term[: ch_list[0]].isupper()
                                         or term[: ch_list[0]] in lower_dev_names
                                     ):
-                                        temp_term = term[ch_list[0] + 1 :]
+                                        temp_term = term[ch_list[0] + 1 :] # noqa: E203
                                     else:
                                         temp_term = term[: ch_list[-1]].lstrip()
                                     parsed_columns.append(temp_term)
 
-                                # found_index = term.find(":")
-                                # if found_index != -1:
-                                #     temp_term = term[found_index + 1 :]  # noqa: E203
-                                #     parsed_columns.append(temp_term)
-                                # else:
-                                #     parsed_columns.append(term.lstrip())
-                    # parsing_case = 0
-                    # break
             else:
                 parsing_case = 0
                 continue
@@ -270,10 +262,8 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False, collection
             continue
         if filepath.suffix[1:].isnumeric():
             with open(filepath) as file:
-                try:
-                    column_names, column_size = parse_columns(file, no_device=True)
-                except:
-                    print("Error: ", filepath)
+                column_names, column_size = parse_columns(file, no_device=True)
+
                 column_set = set(column_names)
                 if "Mono Energy" in column_set and column_size > 0:
                     if not count:
@@ -288,7 +278,6 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False, collection
                             and "Cal_diode" not in column_set
                             and "Canberra" not in column_set
                         ):
-                            # if "Ifluor" in column_set or "IF" in column_set or "If" in column_set or "Cal Diode" in column_set or "Cal-diode" in column_set or "CalDiode" in column_set or "Cal_Diode" in column_set or "Cal_diode" in column_set or "Canberra" in column_set:
                             # if "Ref" in column_set:
                             #    total += 1
                             collection_names = ",".join(column_names)
