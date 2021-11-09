@@ -1,6 +1,5 @@
-from pathlib import Path
-
 from enum import Enum
+from pathlib import Path
 
 
 class ParsingCase(Enum):
@@ -268,24 +267,12 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False, collection
                 if "Mono Energy" in column_set and column_size > 0:
                     if not count:
                         if (
-                            "Ifluor" not in column_set
-                            and "IF" not in column_set
-                            and "If" not in column_set
-                            and "Cal Diode" not in column_set
-                            and "Cal-diode" not in column_set
-                            and "CalDiode" not in column_set
-                            and "Cal_Diode" not in column_set
-                            and "Cal_diode" not in column_set
-                            and "Canberra" not in column_set
+                            "I0" not in column_set
+                            and "IO" not in column_set
+                            and "I-0" not in column_set
                         ):
-                            # if "Ref" in column_set:
-                            #    total += 1
                             collection_names = ",".join(column_names)
                             collection.add(collection_names)
-                            # if collection_names not in collection:
-                            #     collection[collection_names]=[str(filepath)]
-                            # else:
-                            #     collection[collection_names].append(str(filepath))
                             print("Not Unique: ", filepath)
                         if start:
                             tracked_set = column_set.copy()

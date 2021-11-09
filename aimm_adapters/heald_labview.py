@@ -14,13 +14,13 @@ tiled serve config config.yml
 """
 
 import os
+from enum import Enum
 from pathlib import Path
 
 import pandas as pd
-from enum import Enum
-from tiled.trees.in_memory import Tree
 from tiled.readers.dataframe import DataFrameAdapter
 from tiled.server.object_cache import with_object_cache
+from tiled.trees.in_memory import Tree
 
 
 class ParsingCase(Enum):
@@ -329,9 +329,10 @@ def normalize_dataframe(df):
 
                     # Reached the end of the list and found nothing for one variable
                     # Must return None because it does not meet the XDI standards
-                    if counter == len(value):
-                        norm_df = None
-                        return norm_df
+                    # Uncomment the next lines to make the normalized filter more strict
+                    # if counter == len(value):
+                    #     norm_df = None
+                    #     return norm_df
 
     return norm_df
 
