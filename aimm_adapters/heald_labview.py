@@ -16,11 +16,28 @@ tiled serve config config.yml
 import os
 from enum import Enum
 from pathlib import Path
+from collections import defaultdict
 
 import pandas as pd
 from tiled.readers.dataframe import DataFrameAdapter
 from tiled.server.object_cache import with_object_cache
 from tiled.trees.in_memory import Tree
+
+
+def mangle_dup_names(names):
+    d = defaultdict(int)
+
+    out = []
+
+    for x in names:
+        count = d[x]
+        if count == 0:
+            out.append(x)
+        else:
+            out.append(f"{x}.{count}")
+        d[x] += 1
+
+    return out
 
 
 class ParsingCase(Enum):
@@ -213,6 +230,8 @@ def parse_heald_labview(file, no_device=False):
             sample = line.split()
             sample = list(map(float, sample))
             data.append(sample)
+
+    headers = mangle_dup_names(headers)
     df = pd.DataFrame(data, columns=headers)
 
     return df, meta_dict
