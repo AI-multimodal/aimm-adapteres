@@ -14,11 +14,12 @@ tiled serve config config.yml
 """
 
 import os
+from collections import defaultdict
 from enum import Enum
 from pathlib import Path
-from collections import defaultdict
 
 import pandas as pd
+import xraydb
 from tiled.readers.dataframe import DataFrameAdapter
 from tiled.server.object_cache import with_object_cache
 from tiled.trees.in_memory import Tree
@@ -283,6 +284,11 @@ def iter_subdirectory(mapping, path, normalize=False):
                     filepaths[i].name
                 ] = with_object_cache(cache_key, build_reader, filepaths[i])
 
+        # For a normalized tree, experiments files are grouped, filtered and saved
+        # temporarily. Once all files of ine experiments are read, it checks if there
+        # are remaining files that passed the filtering phase. The result is saved in
+        # the main tree. This avoids the generation of empty nodes in the final version
+        # of the tree.
         if normalize:
             if filepaths[i].stem in experiment_group:
                 if i == len(filepaths) - 1:
@@ -356,6 +362,80 @@ def normalize_dataframe(df):
     return norm_df
 
 
+def parse_element_name(filepath, df, metadata):
+
+    element_name = None
+    if "energy" in set(df.keys()):
+        energy = df["energy"]
+        if len(energy) > 1:
+            min_max = [min(energy), max(energy)]
+
+            element_list = {}
+            # Find if the edge value of an element in xrayDB is inside the range of
+            # Mono Energy values of the current file
+            # An element in XrayDB can contain more than one edge, each one identified by
+            # a unique IUPAC symbol
+            for i in range(1, 99):
+                current_element = xraydb.atomic_symbol(i)
+                edges = xraydb.xray_edges(current_element)
+                for key in edges:
+                    if (
+                        edges[key].energy >= min_max[0]
+                        and edges[key].energy <= min_max[1]
+                    ):
+                        element_list[current_element] = [
+                            i,
+                            current_element,
+                            key,
+                            edges[key].energy,
+                            False,
+                        ]
+                        break
+
+            # Find if the matching elements are named in the parsed metadata
+            # Must considered cases with none or multiple matches
+            match_counter = 0
+            found_key = ""
+            element_match = {}
+            reference = None
+
+            if "UserComment" in metadata:
+                for line in metadata["UserComment"]:
+                    for key, values in element_list.items():
+                        if values[1] in line:
+                            if "iref" in line:
+                                reference = values[1]
+
+                            if not element_list[key][4]:
+                                element_list[key][4] = True
+                                element_match[key] = element_list[key]
+                                found_key = key
+                                match_counter += 1
+                                break
+
+            if element_list and not element_match:
+                for key, values in element_list.items():
+                    if key in filepath.stem:
+                        element_list[key][4] = True
+                        element_match[key] = element_list[key]
+                        found_key = key
+                        match_counter += 1
+
+            if match_counter == 0:
+                element_name = None
+            elif match_counter == 1:
+                element_name = element_list[found_key][1]
+            else:
+                if reference is not None:
+                    if reference in element_match:
+                        element_match.pop(reference, None)
+                        key_list = list(element_match.keys())
+                        if len(key_list) == 1:
+                            element_name = element_match[key_list[0]][1]
+
+    return element_name
+
+
 class HealdLabViewTree(Tree):
     @classmethod
     def from_directory(cls, directory):
@@ -400,6 +480,7 @@ class NormalizedReader:
         self._unnormalized_reader = with_object_cache(
             cache_key, build_reader, filepath, no_device=True
         )
+        self._current_filepath = filepath
 
     def read(self):
         result = self._unnormalized_reader.read()
@@ -410,7 +491,13 @@ class NormalizedReader:
             return norm_df
 
         # norm_metadata = {'Columns':self._unnormalized_reader.metadata['Columns']}
-        norm_metadata = {"Columns": list(norm_df.columns)}
+        element_name = parse_element_name(
+            self._current_filepath, norm_df, self._unnormalized_reader.metadata
+        )
+        norm_metadata = {
+            "Columns": list(norm_df.columns),
+            "Element_symbol": element_name,
+        }
         return DataFrameAdapter.from_pandas(
             norm_df, metadata=norm_metadata, npartitions=1
         )

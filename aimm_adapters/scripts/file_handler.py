@@ -1,6 +1,9 @@
 from enum import Enum
 from pathlib import Path
 
+import pandas as pd
+import xraydb
+
 
 class ParsingCase(Enum):
     column = 1
@@ -22,6 +25,9 @@ def parse_columns(file, no_device=False):
     # Abbreviated parsing method that is based on the method used in heald_labview.py.
     # It focuses on extracting the metadata for the column names to be used in more
     # detailed analysis.
+    #
+    # Used for testing purposes only.
+    # Mainly to compare the structure of the columns and column names.
 
     lines = file.readlines()
 
@@ -95,6 +101,189 @@ def parse_columns(file, no_device=False):
                 break
 
     return parsed_columns, data_size
+
+
+def parse_labview_file(file, no_device=False):
+    # This method is a duplicate from the method used in heald_labview:parse_heald_labview.py
+    # This mehtod is used to test new ideas that can expand and improve the parsing strategy
+    # of heald's dataset
+
+    lines = file.readlines()
+
+    parsing_case = 0
+    headers = []
+    data = []
+    comment_lines = []
+    meta_dict = {}
+    first_line = True
+
+    for line in lines:
+        line = line.rstrip()
+        # Parse comments as metadata
+        if line[0] == "#":
+            if len(line) > 2:
+                # The next line after the Column Headinds tag is the only line
+                # that does not include a white space after the comment/hash symbol
+                if parsing_case == ParsingCase.column or first_line:
+                    line = line[1:]
+                    first_line = False
+                else:
+                    line = line[2:]
+
+                # Add additional cases to parse more information from the
+                # header comments
+                # Start reading the name of the upcoming block of information
+
+                if line == "Column Headings:":
+                    parsing_case = ParsingCase.column  # Create headers for dataframe
+                    continue
+                elif line == "User Comment:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.user
+                    continue
+                elif line == "Scan config:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.scan
+                    continue
+                elif line == "Amplifier Sensitivities:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.amplifier
+                    continue
+                elif line.find("Analog Input Voltages") != -1:
+                    comment_lines = []
+                    parsing_case = ParsingCase.analog
+                    continue
+                elif line == "Mono Info:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.mono
+                    continue
+                elif line == "ID Info:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.id_info
+                    continue
+                elif line == "Slit Info:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.slit
+                    continue
+                elif line == "Motor Positions:":
+                    comment_lines = []
+                    parsing_case = ParsingCase.motor
+                    continue
+                elif line.find("LabVIEW Control Panel") != -1:
+                    comment_lines = []
+                    parsing_case = ParsingCase.panel
+                elif line.find("Beamline") != -1:
+                    parsing_case = ParsingCase.beamline
+                elif line.find("XIA Filters:") != -1:
+                    parsing_case = ParsingCase.xia
+                    continue
+                elif line.find("XIA Shutter Unit:") != -1:
+                    parsing_case = ParsingCase.shutter
+                    continue
+
+                # Reads the following lines to parse a block of information
+                # with a specific format
+                if parsing_case == ParsingCase.column:
+                    line = line.replace("*", " ")
+                    line = line.replace("tempeXMAP4", "tempe        XMAP4")
+                    line = line.replace("scatter_Sum XMAP4", "scatter_Sum        XMAP4")
+                    line = line.replace("Stats1:TS20-", "Stats1:T        S20-")
+
+                    if not no_device:
+                        headers = [term.lstrip() for term in line.split("  ") if term]
+                    else:
+                        for term in line.split("  "):
+                            if term:
+                                term = term.lstrip()
+                                index_list = find_char_indexes(term, ":")
+                                if len(index_list) == 0:
+                                    headers.append(term)
+                                else:
+                                    lower_dev_names = set(["pncaux", "pncid"])
+                                    if (
+                                        term[: index_list[0]].isupper()
+                                        or term[: index_list[0]] in lower_dev_names
+                                    ):
+                                        temp_term = term[
+                                            index_list[0] + 1 :  # noqa: E203
+                                        ]
+                                    else:
+                                        temp_term = term[: index_list[-1]]
+                                    headers.append(temp_term)
+
+                    meta_dict["Columns"] = headers
+                    parsing_case = 0
+                elif parsing_case == ParsingCase.user:
+                    line = " ".join(line.split())  # Remove unwanted white spaces
+                    comment_lines.append(line)
+                    meta_dict["UserComment"] = comment_lines
+                elif parsing_case == ParsingCase.scan:
+                    line = " ".join(line.split())  # Remove unwanted white spaces
+                    comment_lines.append(line)
+                    meta_dict["ScanConfig"] = comment_lines
+                elif parsing_case == ParsingCase.amplifier:
+                    comment_lines = line.split("  ")
+                    amplifier_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        amplifier_dict[key] = value
+                    meta_dict["AmplifierSensitivities"] = amplifier_dict
+                elif parsing_case == ParsingCase.analog:
+                    comment_lines = line.split("  ")
+                    analog_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        analog_dict[key] = value
+                    meta_dict["AnalogInputVoltages"] = analog_dict
+                elif parsing_case == ParsingCase.mono:
+                    comment_lines = line.split("; ")
+                    mono_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        mono_dict[key] = value
+                    meta_dict["MonoInfo"] = mono_dict
+                elif parsing_case == ParsingCase.id_info:
+                    comment_lines = line.split("  ")
+                    meta_dict["IDInfo"] = comment_lines
+                elif parsing_case == ParsingCase.slit:
+                    comment_lines.append(line)
+                    meta_dict["SlitInfo"] = comment_lines
+                elif parsing_case == ParsingCase.motor:
+                    comment_lines.append(line)
+                    meta_dict["MotorPositions"] = comment_lines
+                elif parsing_case == ParsingCase.panel:
+                    comment_lines = line.split("; ")
+                    meta_dict["File"] = comment_lines
+                elif parsing_case == ParsingCase.beamline:
+                    meta_dict["Beamline"] = line
+                elif parsing_case == ParsingCase.xia:
+                    line = line.replace("OUT", "OUT ")
+                    comment_lines = line.split("  ")
+                    xia_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        xia_dict[key] = value
+                    meta_dict["XIAFilter"] = xia_dict
+                elif parsing_case == ParsingCase.shutter:
+                    line = line.replace("OUT", "OUT ")
+                    comment_lines = line.split("  ")
+                    shutter_dict = {}
+                    for element in comment_lines:
+                        key, value = element.split(": ", 1)
+                        shutter_dict[key] = value
+                    meta_dict["XIAShutterUnit"] = shutter_dict
+            else:
+                parsing_case = 0
+                continue
+        # Parse data
+        else:
+            line = " ".join(line.split())  # Remove unwanted white spaces
+            sample = line.split()
+            sample = list(map(float, sample))
+            data.append(sample)
+    df = pd.DataFrame(data, columns=headers)
+
+    return df, meta_dict
 
 
 def find_char_indexes(word, char):
@@ -305,6 +494,25 @@ def iter_dictionary_read(dict_input, level, str_buffer):
     return str_buffer
 
 
+def iter_element_name_parse(path):
+
+    for filepath in path.iterdir():
+        if filepath.name.startswith("."):
+            # Skip hidden files.
+            continue
+        if not filepath.is_file():
+            # Explore subfolder for more labview files recursively
+            iter_element_name_parse(filepath)
+            continue
+        if filepath.suffix[1:].isnumeric():
+            with open(filepath) as file:
+                df, metadata = parse_labview_file(file)
+
+            if not df.empty:
+                element_name = parse_element_name(filepath, df, metadata)
+                print(element_name)
+
+
 def write_file_structure(keyword):
     # Navigates through all the subfolders in the dataset, finds the compatible files,
     # creates a tree structure with their information and writes it into a file.
@@ -354,6 +562,85 @@ def count_unique_words():
     print(sorted_list)
 
 
+def parse_element_name(filepath, df, metadata):
+
+    element_name = None
+    if "Mono Energy" in set(df.keys()):
+        energy = df["Mono Energy"]
+        if len(energy) > 1:
+            min_max = [min(energy), max(energy)]
+
+            element_list = {}
+            # Find if the edge value of an element in xrayDB is inside the range of
+            # Mono Energy values of the current file
+            # An element in XrayDB can contain more than one edge, each one identified by
+            # a unique IUPAC symbol
+            for i in range(1, 99):
+                current_element = xraydb.atomic_symbol(i)
+                edges = xraydb.xray_edges(current_element)
+                for key in edges:
+                    if (
+                        edges[key].energy >= min_max[0]
+                        and edges[key].energy <= min_max[1]
+                    ):
+                        element_list[current_element] = [
+                            i,
+                            current_element,
+                            key,
+                            edges[key].energy,
+                            False,
+                        ]
+                        break
+
+            # Find if the matching elements are named in the parsed metadata
+            # Must considered cases with none or multiple matches
+            match_counter = 0
+            found_key = ""
+            element_match = {}
+            reference = None
+
+            if "UserComment" in metadata:
+                for line in metadata["UserComment"]:
+                    for key, values in element_list.items():
+                        if values[1] in line:
+                            if "iref" in line:
+                                reference = values[1]
+
+                            if not element_list[key][4]:
+                                element_list[key][4] = True
+                                element_match[key] = element_list[key]
+                                found_key = key
+                                match_counter += 1
+                                break
+
+            if element_list and not element_match:
+                for key, values in element_list.items():
+                    if key in filepath.stem:
+                        element_list[key][4] = True
+                        element_match[key] = element_list[key]
+                        found_key = key
+                        match_counter += 1
+
+            if match_counter == 0:
+                print("No match", filepath)
+                element_name = None
+            elif match_counter == 1:
+                element_name = element_list[found_key][1]
+            else:
+                if reference is not None:
+                    if reference in element_match:
+                        element_match.pop(reference, None)
+                        key_list = list(element_match.keys())
+                        if len(key_list) == 1:
+                            element_name = element_match[key_list[0]][1]
+
+    return element_name
+
+
 if __name__ == "__main__":
-    find_unique_keywords()
+    # find_unique_keywords()
     # count_unique_words()
+
+    filename = Path("../files/")
+    # parse_element_name(filename)
+    iter_element_name_parse(filename)
