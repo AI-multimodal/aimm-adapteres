@@ -4,6 +4,10 @@ from pathlib import Path
 import pandas as pd
 import xraydb
 
+_EDGE_ENERGY_DICT = {
+    xraydb.atomic_symbol(i): [i, xraydb.xray_edges(i)] for i in range(1, 99)
+}
+
 
 class ParsingCase(Enum):
     column = 1
@@ -575,16 +579,15 @@ def parse_element_name(filepath, df, metadata):
             # Mono Energy values of the current file
             # An element in XrayDB can contain more than one edge, each one identified by
             # a unique IUPAC symbol
-            for i in range(1, 99):
-                current_element = xraydb.atomic_symbol(i)
-                edges = xraydb.xray_edges(current_element)
+            for current_element, values in _EDGE_ENERGY_DICT.items():
+                edges = values[1]
                 for key in edges:
                     if (
                         edges[key].energy >= min_max[0]
                         and edges[key].energy <= min_max[1]
                     ):
                         element_list[current_element] = [
-                            i,
+                            values[0],
                             current_element,
                             key,
                             edges[key].energy,
@@ -622,7 +625,7 @@ def parse_element_name(filepath, df, metadata):
                         match_counter += 1
 
             if match_counter == 0:
-                print("No match", filepath)
+                # print("No match", filepath)
                 element_name = None
             elif match_counter == 1:
                 element_name = element_list[found_key][1]

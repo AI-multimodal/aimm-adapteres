@@ -24,6 +24,10 @@ from tiled.readers.dataframe import DataFrameAdapter
 from tiled.server.object_cache import with_object_cache
 from tiled.trees.in_memory import Tree
 
+_EDGE_ENERGY_DICT = {
+    xraydb.atomic_symbol(i): [i, xraydb.xray_edges(i)] for i in range(1, 99)
+}
+
 
 def mangle_dup_names(names):
     d = defaultdict(int)
@@ -375,16 +379,15 @@ def parse_element_name(filepath, df, metadata):
             # Mono Energy values of the current file
             # An element in XrayDB can contain more than one edge, each one identified by
             # a unique IUPAC symbol
-            for i in range(1, 99):
-                current_element = xraydb.atomic_symbol(i)
-                edges = xraydb.xray_edges(current_element)
+            for current_element, values in _EDGE_ENERGY_DICT.items():
+                edges = values[1]
                 for key in edges:
                     if (
                         edges[key].energy >= min_max[0]
                         and edges[key].energy <= min_max[1]
                     ):
                         element_list[current_element] = [
-                            i,
+                            values[0],
                             current_element,
                             key,
                             edges[key].energy,
