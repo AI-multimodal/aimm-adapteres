@@ -513,8 +513,8 @@ def iter_element_name_parse(path):
                 df, metadata = parse_labview_file(file)
 
             if not df.empty:
-                element_name = parse_element_name(filepath, df, metadata)
-                print(element_name)
+                element_name, edge_symbol = parse_element_name(filepath, df, metadata)
+                print(element_name, edge_symbol)
 
 
 def write_file_structure(keyword):
@@ -569,6 +569,7 @@ def count_unique_words():
 def parse_element_name(filepath, df, metadata):
 
     element_name = None
+    edge_symbol = None
     if "Mono Energy" in set(df.keys()):
         energy = df["Mono Energy"]
         if len(energy) > 1:
@@ -627,8 +628,10 @@ def parse_element_name(filepath, df, metadata):
             if match_counter == 0:
                 # print("No match", filepath)
                 element_name = None
+                edge_symbol = None
             elif match_counter == 1:
                 element_name = element_list[found_key][1]
+                edge_symbol = element_list[found_key][2]
             else:
                 if reference is not None:
                     if reference in element_match:
@@ -636,8 +639,9 @@ def parse_element_name(filepath, df, metadata):
                         key_list = list(element_match.keys())
                         if len(key_list) == 1:
                             element_name = element_match[key_list[0]][1]
+                            edge_symbol = element_match[key_list[0]][2]
 
-    return element_name
+    return element_name, edge_symbol
 
 
 if __name__ == "__main__":
