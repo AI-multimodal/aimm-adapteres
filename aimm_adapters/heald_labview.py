@@ -369,6 +369,7 @@ def normalize_dataframe(df):
 def parse_element_name(filepath, df, metadata):
 
     element_name = None
+    edge_symbol = None
     if "energy" in set(df.keys()):
         energy = df["energy"]
         if len(energy) > 1:
@@ -381,19 +382,34 @@ def parse_element_name(filepath, df, metadata):
             # a unique IUPAC symbol
             for current_element, values in _EDGE_ENERGY_DICT.items():
                 edges = values[1]
-                for key in edges:
+                # Most of the cases are solved with a 'K' edge value. This is added to
+                # improve computing time
+                if "K" in edges:
                     if (
-                        edges[key].energy >= min_max[0]
-                        and edges[key].energy <= min_max[1]
+                        edges["K"].energy >= min_max[0]
+                        and edges["K"].energy <= min_max[1]
                     ):
                         element_list[current_element] = [
                             values[0],
                             current_element,
-                            key,
-                            edges[key].energy,
+                            "K",
+                            edges["K"].energy,
                             False,
                         ]
-                        break
+                else:
+                    for key in edges:
+                        if (
+                            edges[key].energy >= min_max[0]
+                            and edges[key].energy <= min_max[1]
+                        ):
+                            element_list[current_element] = [
+                                values[0],
+                                current_element,
+                                key,
+                                edges[key].energy,
+                                False,
+                            ]
+                            break
 
             # Find if the matching elements are named in the parsed metadata
             # Must considered cases with none or multiple matches
@@ -426,8 +442,10 @@ def parse_element_name(filepath, df, metadata):
 
             if match_counter == 0:
                 element_name = None
+                edge_symbol = None
             elif match_counter == 1:
                 element_name = element_list[found_key][1]
+                edge_symbol = element_list[found_key][2]
             else:
                 if reference is not None:
                     if reference in element_match:
@@ -435,8 +453,9 @@ def parse_element_name(filepath, df, metadata):
                         key_list = list(element_match.keys())
                         if len(key_list) == 1:
                             element_name = element_match[key_list[0]][1]
+                            edge_symbol = element_match[key_list[0]][2]
 
-    return element_name
+    return element_name, edge_symbol
 
 
 class HealdLabViewTree(Tree):
@@ -494,12 +513,13 @@ class NormalizedReader:
             return norm_df
 
         # norm_metadata = {'Columns':self._unnormalized_reader.metadata['Columns']}
-        element_name = parse_element_name(
+        element_name, edge_symbol = parse_element_name(
             self._current_filepath, norm_df, self._unnormalized_reader.metadata
         )
         norm_metadata = {
             "Columns": list(norm_df.columns),
             "Element_symbol": element_name,
+            "Edge_symbol": edge_symbol,
         }
         return DataFrameAdapter.from_pandas(
             norm_df, metadata=norm_metadata, npartitions=1
