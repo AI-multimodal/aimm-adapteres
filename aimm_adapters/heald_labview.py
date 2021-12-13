@@ -517,9 +517,9 @@ class NormalizedReader:
             self._current_filepath, norm_df, self._unnormalized_reader.metadata
         )
         norm_metadata = {
-            "Columns": list(norm_df.columns),
-            "Element_symbol": element_name,
-            "Edge_symbol": edge_symbol,
+            "Column": list(norm_df.columns),
+            "Element": {"symbol": element_name, "edge": edge_symbol},
+            "common": {"element": {"symbol": element_name, "edge": edge_symbol}},
         }
         return DataFrameAdapter.from_pandas(
             norm_df, metadata=norm_metadata, npartitions=1
