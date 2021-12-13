@@ -382,19 +382,34 @@ def parse_element_name(filepath, df, metadata):
             # a unique IUPAC symbol
             for current_element, values in _EDGE_ENERGY_DICT.items():
                 edges = values[1]
-                for key in edges:
+                # Most of the cases are solved with a 'K' edge value. This is added to
+                # improve computing time
+                if "K" in edges:
                     if (
-                        edges[key].energy >= min_max[0]
-                        and edges[key].energy <= min_max[1]
+                        edges["K"].energy >= min_max[0]
+                        and edges["K"].energy <= min_max[1]
                     ):
                         element_list[current_element] = [
                             values[0],
                             current_element,
-                            key,
-                            edges[key].energy,
+                            "K",
+                            edges["K"].energy,
                             False,
                         ]
-                        break
+                else:
+                    for key in edges:
+                        if (
+                            edges[key].energy >= min_max[0]
+                            and edges[key].energy <= min_max[1]
+                        ):
+                            element_list[current_element] = [
+                                values[0],
+                                current_element,
+                                key,
+                                edges[key].energy,
+                                False,
+                            ]
+                            break
 
             # Find if the matching elements are named in the parsed metadata
             # Must considered cases with none or multiple matches
