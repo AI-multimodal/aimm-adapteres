@@ -20,9 +20,9 @@ from pathlib import Path
 
 import pandas as pd
 import xraydb
-from tiled.readers.dataframe import DataFrameAdapter
+from tiled.adapters.dataframe import DataFrameAdapter
+from tiled.adapters.mapping import MapAdapter
 from tiled.server.object_cache import with_object_cache
-from tiled.trees.in_memory import Tree
 
 _EDGE_ENERGY_DICT = {
     xraydb.atomic_symbol(i): [i, xraydb.xray_edges(i)] for i in range(1, 99)
@@ -269,13 +269,13 @@ def iter_subdirectory(mapping, path, normalize=False):
             sub_mapping = {}
             sub_mapping = iter_subdirectory(sub_mapping, filepaths[i], normalize)
             if sub_mapping:
-                mapping[filepaths[i].name] = Tree(sub_mapping)
+                mapping[filepaths[i].name] = MapAdapter(sub_mapping)
             continue
         if filepaths[i].suffix[1:].isnumeric():
             if filepaths[i].stem not in experiment_group:
                 experiment_group[filepaths[i].stem] = {}
                 if not normalize:
-                    mapping[filepaths[i].stem] = Tree(
+                    mapping[filepaths[i].stem] = MapAdapter(
                         experiment_group[filepaths[i].stem]
                     )
             if normalize:
@@ -297,12 +297,12 @@ def iter_subdirectory(mapping, path, normalize=False):
             if filepaths[i].stem in experiment_group:
                 if i == len(filepaths) - 1:
                     if len(experiment_group[filepaths[i].stem]) != 0:
-                        mapping[filepaths[i].stem] = Tree(
+                        mapping[filepaths[i].stem] = MapAdapter(
                             experiment_group[filepaths[i].stem]
                         )
                 elif filepaths[i].stem != filepaths[i + 1].stem:
                     if len(experiment_group[filepaths[i].stem]) != 0:
-                        mapping[filepaths[i].stem] = Tree(
+                        mapping[filepaths[i].stem] = MapAdapter(
                             experiment_group[filepaths[i].stem]
                         )
 
@@ -311,14 +311,14 @@ def iter_subdirectory(mapping, path, normalize=False):
 
 def subdirectory_handler(path):
     mapping = {}
-    heald_tree = Tree(mapping)
+    heald_tree = MapAdapter(mapping)
     mapping = iter_subdirectory(mapping, path)
     return heald_tree
 
 
 def normalized_subdirectory_handler(path):
     mapping = {}
-    heald_tree = Tree(mapping)
+    heald_tree = MapAdapter(mapping)
     mapping = iter_subdirectory(mapping, path, normalize=True)
     return heald_tree
 
@@ -458,7 +458,7 @@ def parse_element_name(filepath, df, metadata):
     return element_name, edge_symbol
 
 
-class HealdLabViewTree(Tree):
+class HealdLabViewTree(MapAdapter):
     @classmethod
     def from_directory(cls, directory):
         mapping = {
@@ -469,17 +469,17 @@ class HealdLabViewTree(Tree):
         return cls(mapping)
 
 
-class RIXSImagesAndTable(Tree):
+class RIXSImagesAndTable(MapAdapter):
     @classmethod
     def from_directory(cls, directory):
         import tifffile
-        from tiled.readers.tiff_sequence import TiffSequenceReader
+        from tiled.adapters.tiff import TiffSequenceAdapter
 
         mapping = {
-            name: Tree(
+            name: MapAdapter(
                 {
                     "table": build_reader(Path(directory, name)),
-                    "images": TiffSequenceReader(
+                    "images": TiffSequenceAdapter(
                         tifffile.TiffSequence(f"{Path(directory,name)}.Eiger/*")
                     ),
                 }
@@ -517,7 +517,6 @@ class NormalizedReader:
             self._current_filepath, norm_df, self._unnormalized_reader.metadata
         )
         norm_metadata = {
-            "Column": list(norm_df.columns),
             "Element": {"symbol": element_name, "edge": edge_symbol},
             "common": {"element": {"symbol": element_name, "edge": edge_symbol}},
         }
