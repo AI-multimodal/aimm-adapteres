@@ -1,9 +1,10 @@
-import pytest
-
 from pathlib import Path
-from ..heald_labview import HealdLabViewTree
+
+import pytest
+from tiled.adapters.mapping import MapAdapter
 from tiled.client import from_tree
-from tiled.trees.in_memory import Tree
+
+from ..heald_labview import HealdLabViewTree
 
 
 @pytest.mark.parametrize(
@@ -13,7 +14,7 @@ from tiled.trees.in_memory import Tree
 def test_heald_labview(filename, expected_size):
     here = Path(__file__).parent  # directory containing this module
     files = here / ".." / "files"
-    tree = Tree({"A": HealdLabViewTree.from_directory(files)})
+    tree = MapAdapter({"A": HealdLabViewTree.from_directory(files)})
     client = from_tree(tree)
     arr = client["A"][filename].read()
     assert arr.shape == expected_size

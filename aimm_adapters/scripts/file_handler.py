@@ -65,6 +65,7 @@ def parse_columns(file, no_device=False):
                     line = line.replace("tempeXMAP4", "tempe        XMAP4")
                     line = line.replace("scatter_Sum XMAP4", "scatter_Sum        XMAP4")
                     line = line.replace("Stats1:TS20-", "Stats1:T        S20-")
+                    line = line.replace("Mono Energy (alt)", "Mono Energy")
 
                     if not no_device:
                         parsed_columns = [
@@ -78,7 +79,9 @@ def parse_columns(file, no_device=False):
                                 if len(ch_list) == 0:
                                     parsed_columns.append(term.lstrip())
                                 else:
-                                    lower_dev_names = set(["pncaux", "pncid"])
+                                    lower_dev_names = set(
+                                        ["pncaux", "pncid", "s20ptc10"]
+                                    )
                                     if (
                                         term[: ch_list[0]].isupper()
                                         or term[: ch_list[0]] in lower_dev_names
@@ -459,14 +462,14 @@ def iter_unique_keywords(path, tracked_set, start=False, count=False, collection
                 column_set = set(column_names)
                 if "Mono Energy" in column_set and column_size > 0:
                     if not count:
-                        if (
-                            "I0" not in column_set
-                            and "IO" not in column_set
-                            and "I-0" not in column_set
-                        ):
-                            collection_names = ",".join(column_names)
-                            collection.add(collection_names)
-                            print("Not Unique: ", filepath)
+                        # if (
+                        #     "I0" not in column_set
+                        #     and "IO" not in column_set
+                        #     and "I-0" not in column_set
+                        # ):
+                        #     collection_names = ",".join(column_names)
+                        #     collection.add(collection_names)
+                        #     print("Not Unique: ", filepath)
                         if start:
                             tracked_set = column_set.copy()
                             start = False
@@ -661,8 +664,8 @@ def parse_element_name(filepath, df, metadata):
 
 if __name__ == "__main__":
     # find_unique_keywords()
-    # count_unique_words()
+    count_unique_words()
 
-    filename = Path("../files/")
+    # filename = Path("../files/")
     # parse_element_name(filename)
-    iter_element_name_parse(filename)
+    # iter_element_name_parse(filename)
