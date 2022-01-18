@@ -328,9 +328,8 @@ def normalize_dataframe(df):
     keywords = {
         "time": ["Scaler preset time", "None"],
         "i0": ["I0", "IO", "I-0"],
-        "it": ["IT", "I1", "I", "It", "Trans"],
-        "ir": ["Iref", "IRef", "I2", "IR", "IREF", "DiodeRef", "Cal(Iref)", "Ref"],
-        "if": [
+        "itrans": ["IT", "I1", "I", "It", "Trans"],
+        "ifluor": [
             "Ifluor",
             "IF",
             "If",
@@ -341,6 +340,7 @@ def normalize_dataframe(df):
             "Cal_diode",
             "Canberra",
         ],
+        "irefer": ["Iref", "IRef", "I2", "IR", "IREF", "DiodeRef", "Cal(Iref)", "Ref"],
     }
     column_names = set(df.columns.values.tolist())
     norm_df = None
