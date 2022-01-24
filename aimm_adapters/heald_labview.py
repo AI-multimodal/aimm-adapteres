@@ -252,6 +252,26 @@ def build_reader(filepath, no_device=False):
     return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
 
 
+def complete_build_reader(filepath, no_device=False):
+    with open(filepath) as file:
+        df, metadata = parse_heald_labview(file, no_device)
+        std_df, changed_columns = normalize_dataframe(df, standardize=True)
+
+        if std_df is None:
+            return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
+        else:
+            metadata["Columns"] = list(std_df.columns)
+            element_name, edge_symbol = parse_element_name(filepath, std_df, metadata)
+
+            metadata["Element"] = {"symbol": element_name, "edge": edge_symbol}
+            metadata["common"] = {
+                "element": {"symbol": element_name, "edge": edge_symbol}
+            }
+            metadata["Translation"] = changed_columns
+
+        return DataFrameAdapter.from_pandas(std_df, metadata=metadata, npartitions=1)
+
+
 def is_candidate(filename):
     filename_ext = filename.split(".")
     return filename_ext[-1].isnumeric()
@@ -289,7 +309,7 @@ def iter_subdirectory(mapping, path, normalize=False):
                 ] = with_object_cache(cache_key, build_reader, filepaths[i])
 
         # For a normalized tree, experiments files are grouped, filtered and saved
-        # temporarily. Once all files of ine experiments are read, it checks if there
+        # temporarily. Once all files of one experiment are read, it checks if there
         # are remaining files that passed the filtering phase. The result is saved in
         # the main tree. This avoids the generation of empty nodes in the final version
         # of the tree.
@@ -309,6 +329,37 @@ def iter_subdirectory(mapping, path, normalize=False):
     return mapping
 
 
+def complete_tree_iter_subdirectory(mapping, path):
+    # This method takes the two strategies implemented in iter_subdirectory() but it creates one single
+    # tree instead with the information of both versions when it is available.
+    experiment_group = {}
+    filepaths = sorted(path.iterdir())
+    for i in range(len(filepaths)):
+        if filepaths[i].name.startswith("."):
+            # Skip hidden files.
+            continue
+        if not filepaths[i].is_file():
+            # Explore subfolder for more labview files recursively
+            sub_mapping = {}
+            sub_mapping = complete_tree_iter_subdirectory(sub_mapping, filepaths[i])
+            if sub_mapping:
+                mapping[filepaths[i].name] = MapAdapter(sub_mapping)
+            continue
+        if filepaths[i].suffix[1:].isnumeric():
+            if filepaths[i].stem not in experiment_group:
+                experiment_group[filepaths[i].stem] = {}
+                mapping[filepaths[i].stem] = MapAdapter(
+                    experiment_group[filepaths[i].stem]
+                )
+
+            cache_key = (Path(__file__).stem, filepaths[i])
+            experiment_group[filepaths[i].stem][filepaths[i].name] = with_object_cache(
+                cache_key, complete_build_reader, filepaths[i]
+            )
+
+    return mapping
+
+
 def subdirectory_handler(path):
     mapping = {}
     heald_tree = MapAdapter(mapping)
@@ -323,7 +374,15 @@ def normalized_subdirectory_handler(path):
     return heald_tree
 
 
-def normalize_dataframe(df):
+def complete_subdirectory_handler(path):
+    # Added a new method that combines the structures of a raw and XDI tree into one single tree
+    mapping = {}
+    heald_tree = MapAdapter(mapping)
+    mapping = complete_tree_iter_subdirectory(mapping, path)
+    return heald_tree
+
+
+def normalize_dataframe(df, standardize=False):
     energy = "Mono Energy"
     keywords = {
         "time": ["Scaler preset time", "None"],
@@ -343,16 +402,28 @@ def normalize_dataframe(df):
         "irefer": ["Iref", "IRef", "I2", "IR", "IREF", "DiodeRef", "Cal(Iref)", "Ref"],
     }
     column_names = set(df.columns.values.tolist())
+    changed_names = {}
     norm_df = None
+    # if standardize:
+    #    norm_df = df.copy()
+
     if energy in column_names:
-        norm_df = pd.DataFrame()
+        if standardize:
+            norm_df = df.copy()
+            norm_df.pop(energy)
+        else:
+            norm_df = pd.DataFrame()
         norm_df["energy"] = df[energy]
+
         for key, value in keywords.items():
             if key != "time":
                 counter = 0
                 for name in value:
                     if name in column_names:
                         norm_df[key] = df[name]
+                        changed_names[key] = name
+                        if standardize:
+                            norm_df.pop(name)
                         break
                     counter += 1
 
@@ -363,7 +434,7 @@ def normalize_dataframe(df):
                     #     norm_df = None
                     #     return norm_df
 
-    return norm_df
+    return norm_df, changed_names
 
 
 def parse_element_name(filepath, df, metadata):
@@ -508,7 +579,7 @@ class NormalizedReader:
         result = self._unnormalized_reader.read()
         # Make changes to result (altering column names, removing extraneous columns)
         # and then return it.
-        norm_df = normalize_dataframe(result)
+        norm_df, changed_columns = normalize_dataframe(result)
         if norm_df is None:
             return norm_df
 
@@ -519,6 +590,7 @@ class NormalizedReader:
         norm_metadata = {
             "Element": {"symbol": element_name, "edge": edge_symbol},
             "common": {"element": {"symbol": element_name, "edge": edge_symbol}},
+            "Translation": changed_columns,
         }
         return DataFrameAdapter.from_pandas(
             norm_df, metadata=norm_metadata, npartitions=1
