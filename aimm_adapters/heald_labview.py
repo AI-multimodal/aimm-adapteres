@@ -404,26 +404,25 @@ def normalize_dataframe(df, standardize=False):
     column_names = set(df.columns.values.tolist())
     changed_names = {}
     norm_df = None
-    # if standardize:
-    #    norm_df = df.copy()
 
     if energy in column_names:
         if standardize:
             norm_df = df.copy()
-            norm_df.pop(energy)
+            norm_df = norm_df.rename({energy: "energy"}, axis="columns")
         else:
             norm_df = pd.DataFrame()
-        norm_df["energy"] = df[energy]
+            norm_df["energy"] = df[energy]
 
         for key, value in keywords.items():
             if key != "time":
                 counter = 0
                 for name in value:
                     if name in column_names:
-                        norm_df[key] = df[name]
                         changed_names[key] = name
                         if standardize:
-                            norm_df.pop(name)
+                            norm_df = norm_df.rename({name: key}, axis="columns")
+                        else:
+                            norm_df[key] = df[name]
                         break
                     counter += 1
 
