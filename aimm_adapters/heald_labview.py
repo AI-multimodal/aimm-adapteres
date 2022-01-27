@@ -165,51 +165,51 @@ def parse_heald_labview(file, no_device=False):
                                         temp_term = term[: index_list[-1]]
                                     headers.append(temp_term)
 
-                    meta_dict["Columns"] = headers
+                    meta_dict["columns"] = headers
                     parsing_case = 0
                 elif parsing_case == ParsingCase.user:
                     line = " ".join(line.split())  # Remove unwanted white spaces
                     comment_lines.append(line)
-                    meta_dict["UserComment"] = comment_lines
+                    meta_dict["user_comment"] = comment_lines
                 elif parsing_case == ParsingCase.scan:
                     line = " ".join(line.split())  # Remove unwanted white spaces
                     comment_lines.append(line)
-                    meta_dict["ScanConfig"] = comment_lines
+                    meta_dict["scan_config"] = comment_lines
                 elif parsing_case == ParsingCase.amplifier:
                     comment_lines = line.split("  ")
                     amplifier_dict = {}
                     for element in comment_lines:
                         key, value = element.split(": ", 1)
                         amplifier_dict[key] = value
-                    meta_dict["AmplifierSensitivities"] = amplifier_dict
+                    meta_dict["amplifier_sensitivities"] = amplifier_dict
                 elif parsing_case == ParsingCase.analog:
                     comment_lines = line.split("  ")
                     analog_dict = {}
                     for element in comment_lines:
                         key, value = element.split(": ", 1)
                         analog_dict[key] = value
-                    meta_dict["AnalogInputVoltages"] = analog_dict
+                    meta_dict["analog_input_voltages"] = analog_dict
                 elif parsing_case == ParsingCase.mono:
                     comment_lines = line.split("; ")
                     mono_dict = {}
                     for element in comment_lines:
                         key, value = element.split(": ", 1)
                         mono_dict[key] = value
-                    meta_dict["MonoInfo"] = mono_dict
+                    meta_dict["mono_info"] = mono_dict
                 elif parsing_case == ParsingCase.id_info:
                     comment_lines = line.split("  ")
-                    meta_dict["IDInfo"] = comment_lines
+                    meta_dict["id_info"] = comment_lines
                 elif parsing_case == ParsingCase.slit:
                     comment_lines.append(line)
-                    meta_dict["SlitInfo"] = comment_lines
+                    meta_dict["slit_info"] = comment_lines
                 elif parsing_case == ParsingCase.motor:
                     comment_lines.append(line)
-                    meta_dict["MotorPositions"] = comment_lines
+                    meta_dict["motor_positions"] = comment_lines
                 elif parsing_case == ParsingCase.panel:
                     comment_lines = line.split("; ")
-                    meta_dict["File"] = comment_lines
+                    meta_dict["file"] = comment_lines
                 elif parsing_case == ParsingCase.beamline:
-                    meta_dict["Beamline"] = line
+                    meta_dict["beamline"] = line
                 elif parsing_case == ParsingCase.xia:
                     line = line.replace("OUT", "OUT ")
                     comment_lines = line.split("  ")
@@ -217,7 +217,7 @@ def parse_heald_labview(file, no_device=False):
                     for element in comment_lines:
                         key, value = element.split(": ", 1)
                         xia_dict[key] = value
-                    meta_dict["XIAFilter"] = xia_dict
+                    meta_dict["xia_filter"] = xia_dict
                 elif parsing_case == ParsingCase.shutter:
                     line = line.replace("OUT", "OUT ")
                     comment_lines = line.split("  ")
@@ -225,7 +225,7 @@ def parse_heald_labview(file, no_device=False):
                     for element in comment_lines:
                         key, value = element.split(": ", 1)
                         shutter_dict[key] = value
-                    meta_dict["XIAShutterUnit"] = shutter_dict
+                    meta_dict["xia_shutter_unit"] = shutter_dict
             else:
                 parsing_case = 0
                 continue
@@ -260,14 +260,14 @@ def complete_build_reader(filepath, no_device=False):
         if std_df is None:
             return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
         else:
-            metadata["Columns"] = list(std_df.columns)
+            metadata["columns"] = list(std_df.columns)
             element_name, edge_symbol = parse_element_name(filepath, std_df, metadata)
 
-            metadata["Element"] = {"symbol": element_name, "edge": edge_symbol}
+            metadata["element"] = {"symbol": element_name, "edge": edge_symbol}
             metadata["common"] = {
                 "element": {"symbol": element_name, "edge": edge_symbol}
             }
-            metadata["Translation"] = changed_columns
+            metadata["translation"] = changed_columns
 
         return DataFrameAdapter.from_pandas(std_df, metadata=metadata, npartitions=1)
 
