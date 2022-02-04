@@ -237,7 +237,7 @@ def parse_heald_labview(file, no_device=False):
             data.append(sample)
 
     headers = mangle_dup_names(headers)
-    df = pd.DataFrame(data, columns=headers)
+    df = pd.DataFrame(data, dtype="float64", columns=headers)
 
     return df, meta_dict
 
@@ -258,14 +258,20 @@ def complete_build_reader(filepath, no_device=False):
         std_df, changed_columns = normalize_dataframe(df, standardize=True)
 
         if std_df is None:
+            element = {"symbol": None, "edge": None}
+            metadata["common"] = {
+                "element": element,
+                "columns": list(df.columns),
+                "specs": ["heald", "experiment", "xas"],
+            }
             return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
         else:
-            metadata["columns"] = list(std_df.columns)
             element_name, edge_symbol = parse_element_name(filepath, std_df, metadata)
-
-            metadata["element"] = {"symbol": element_name, "edge": edge_symbol}
+            element = {"symbol": element_name, "edge": edge_symbol}
             metadata["common"] = {
-                "element": {"symbol": element_name, "edge": edge_symbol}
+                "element": element,
+                "columns": list(std_df.columns),
+                "specs": ["heald", "experiment", "xas", "xdi"],
             }
             metadata["translation"] = changed_columns
 
