@@ -249,14 +249,18 @@ def find_char_indexes(word, char):
 def build_reader(filepath, no_device=False):
     with open(filepath) as file:
         df, metadata = parse_heald_labview(file, no_device)
+        if df.empty:
+            return None
     return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
 
 
 def complete_build_reader(filepath, no_device=False):
     with open(filepath) as file:
         df, metadata = parse_heald_labview(file, no_device)
-        std_df, changed_columns = normalize_dataframe(df, standardize=True)
+        if df.empty:
+            return None
 
+        std_df, changed_columns = normalize_dataframe(df, standardize=True)
         if std_df is None:
             return DataFrameAdapter.from_pandas(df, metadata=metadata, npartitions=1)
         else:
@@ -299,14 +303,16 @@ def iter_subdirectory(mapping, path, normalize=False):
                         experiment_group[filepaths[i].stem]
                     )
             if normalize:
-                norm_node = NormalizedReader(filepaths[i]).read()
-                if norm_node is not None:
-                    experiment_group[filepaths[i].stem][filepaths[i].name] = norm_node
+                norm_node = NormalizedReader(filepaths[i])
+                if not norm_node.is_empty():
+                    experiment_group[filepaths[i].stem][
+                        filepaths[i].name
+                    ] = norm_node.read()
             else:
                 cache_key = (Path(__file__).stem, filepaths[i])
-                experiment_group[filepaths[i].stem][
-                    filepaths[i].name
-                ] = with_object_cache(cache_key, build_reader, filepaths[i])
+                end_node = with_object_cache(cache_key, build_reader, filepaths[i])
+                if end_node is not None:
+                    experiment_group[filepaths[i].stem][filepaths[i].name] = end_node
 
         # For a normalized tree, experiments files are grouped, filtered and saved
         # temporarily. Once all files of one experiment are read, it checks if there
@@ -353,9 +359,9 @@ def complete_tree_iter_subdirectory(mapping, path):
                 )
 
             cache_key = (Path(__file__).stem, filepaths[i])
-            experiment_group[filepaths[i].stem][filepaths[i].name] = with_object_cache(
-                cache_key, complete_build_reader, filepaths[i]
-            )
+            end_node = with_object_cache(cache_key, complete_build_reader, filepaths[i])
+            if end_node is not None:
+                experiment_group[filepaths[i].stem][filepaths[i].name] = end_node
 
     return mapping
 
@@ -594,3 +600,9 @@ class NormalizedReader:
         return DataFrameAdapter.from_pandas(
             norm_df, metadata=norm_metadata, npartitions=1
         )
+
+    def is_empty(self):
+        node_state = False
+        if self._unnormalized_reader is None:
+            node_state = True
+        return node_state
