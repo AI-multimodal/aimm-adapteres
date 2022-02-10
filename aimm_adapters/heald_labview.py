@@ -415,6 +415,7 @@ def normalize_dataframe(df, standardize=False):
         if standardize:
             norm_df = df.copy()
             norm_df = norm_df.rename({energy: "energy"}, axis="columns")
+            changed_names["energy"] = energy
         else:
             norm_df = pd.DataFrame()
             norm_df["energy"] = df[energy]
