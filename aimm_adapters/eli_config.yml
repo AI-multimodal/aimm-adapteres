@@ -1,0 +1,5 @@
+trees:
+  - path: /
+    tree: scripts.json_handler:EliJsonTree.from_directory
+    args:
+      directory: files/
