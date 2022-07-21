@@ -305,9 +305,11 @@ def iter_subdirectory(mapping, path, normalize=False):
             if normalize:
                 norm_node = NormalizedReader(filepaths[i])
                 if not norm_node.is_empty():
-                    experiment_group[filepaths[i].stem][
-                        filepaths[i].name
-                    ] = norm_node.read()
+                    read_node = norm_node.read()
+                    if read_node is not None:
+                        experiment_group[filepaths[i].stem][
+                            filepaths[i].name
+                        ] = read_node
             else:
                 cache_key = (Path(__file__).stem, filepaths[i])
                 end_node = with_object_cache(cache_key, build_reader, filepaths[i])
