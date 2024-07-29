@@ -492,7 +492,7 @@ def iter_dictionary_read(dict_input, level, str_buffer):
     for key, value in dict_input.items():
         str_buffer += "    " * level + "|" + spacing + " "
         str_buffer += str(key) + ":"
-        if type(value) == dict:
+        if type(value) is dict:
             str_buffer += "\n"
             str_buffer = iter_dictionary_read(value, level + 1, str_buffer)
         else:
