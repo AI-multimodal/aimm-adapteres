@@ -556,7 +556,7 @@ class RIXSImagesAndTable(MapAdapter):
                 {
                     "table": build_reader(Path(directory, name)),
                     "images": TiffSequenceAdapter(
-                        tifffile.TiffSequence(f"{Path(directory,name)}.Eiger/*")
+                        tifffile.TiffSequence(f"{Path(directory, name)}.Eiger/*")
                     ),
                 }
             )
