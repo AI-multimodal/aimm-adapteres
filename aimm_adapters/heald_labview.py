@@ -22,7 +22,8 @@ import pandas as pd
 import xraydb
 from tiled.adapters.dataframe import DataFrameAdapter
 from tiled.adapters.mapping import MapAdapter
-from tiled.server.object_cache import with_object_cache
+
+# from tiled.server.object_cache import with_object_cache
 
 _EDGE_ENERGY_DICT = {
     xraydb.atomic_symbol(i): [i, xraydb.xray_edges(i)] for i in range(1, 99)
@@ -309,8 +310,9 @@ def iter_subdirectory(mapping, path, normalize=False):
                         filepaths[i].name
                     ] = norm_node.read()
             else:
-                cache_key = (Path(__file__).stem, filepaths[i])
-                end_node = with_object_cache(cache_key, build_reader, filepaths[i])
+                # cache_key = (Path(__file__).stem, filepaths[i])
+                # end_node = with_object_cache(cache_key, build_reader, filepaths[i])
+                end_node = build_reader(filepaths[i])
                 if end_node is not None:
                     experiment_group[filepaths[i].stem][filepaths[i].name] = end_node
 
@@ -358,8 +360,9 @@ def complete_tree_iter_subdirectory(mapping, path):
                     experiment_group[filepaths[i].stem]
                 )
 
-            cache_key = (Path(__file__).stem, filepaths[i])
-            end_node = with_object_cache(cache_key, complete_build_reader, filepaths[i])
+            # cache_key = (Path(__file__).stem, filepaths[i])
+            # end_node = with_object_cache(cache_key, complete_build_reader, filepaths[i])
+            end_node = complete_build_reader(filepaths[i])
             if end_node is not None:
                 experiment_group[filepaths[i].stem][filepaths[i].name] = end_node
 
@@ -568,16 +571,17 @@ class RIXSImagesAndTable(MapAdapter):
 
 class NormalizedReader:
     def __init__(self, filepath):
-        cache_key = (
-            Path(__file__).stem,
-            filepath,
-        )  # exact same key you used for build_reader
+        # cache_key = (
+        #     Path(__file__).stem,
+        #     filepath,
+        # )  # exact same key you used for build_reader
         # Make an UNnoramlized reader first.
         # Use the cache so that this unnormalized reader can be shared across
         # a normalized tree and an unnormalized tree.
-        self._unnormalized_reader = with_object_cache(
-            cache_key, build_reader, filepath, no_device=True
-        )
+        # self._unnormalized_reader = with_object_cache(
+        #     cache_key, build_reader, filepath, no_device=True
+        # )
+        self._unnormalized_reader = build_reader(filepath, no_device=True)
         self._current_filepath = filepath
 
     def read(self):
